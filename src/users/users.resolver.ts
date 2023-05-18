@@ -1,5 +1,5 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
-import * as bcrypt from 'bcrypt';
+import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
+import { InternalServerErrorException } from '@nestjs/common';
 import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
 import {
@@ -8,17 +8,24 @@ import {
     LoginInput,
     LoginOutPut,
 } from './dtos/create-account.dto';
-import { InternalServerErrorException } from '@nestjs/common';
+import { Public } from 'src/auth/auth.decorator';
+import { AuthService } from 'src/auth/auth.service';
+import { AuthContext } from './interfaces/context.interface';
 
 @Resolver((of) => User)
 export class UsersResolver {
-    constructor(private readonly service: UsersService) {}
+    constructor(
+        private readonly service: UsersService,
+        private authService: AuthService,
+    ) {}
 
+    @Public()
     @Query((returns) => String)
     hello() {
         return 'hello';
     }
 
+    @Public()
     @Mutation((returns) => CreateAccountOutput)
     async createAccount(
         @Args() { email, password, role }: CreateAccountInput,
@@ -33,11 +40,12 @@ export class UsersResolver {
             await this.service.create({ email, password, role });
             return { ok: true };
         } catch (error) {
-            console.log(error);
+            console.error(error);
             throw new InternalServerErrorException();
         }
     }
 
+    @Public()
     @Mutation((returns) => LoginOutPut)
     async login(@Args() { email, password }: LoginInput): Promise<LoginOutPut> {
         try {
@@ -48,18 +56,21 @@ export class UsersResolver {
             }
 
             // Check if password is right
-            const passwordConfirm = await bcrypt.compare(
-                password,
-                user.password,
-            );
+            const passwordConfirm = await user.checkPassword(password);
             if (!passwordConfirm) {
                 return { ok: false, error: 'Password wrong' };
+            } else {
+                const token = await this.authService.sign(user.id);
+                return { ok: true, token };
             }
-
-            return { ok: true, token: 'example token' };
         } catch (error) {
             console.error(error);
             throw new InternalServerErrorException();
         }
+    }
+
+    @Query((returns) => User)
+    me(@Context() ctx: AuthContext) {
+        return ctx.user;
     }
 }

@@ -1,15 +1,19 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { APP_GUARD } from '@nestjs/core';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from './users/users.module';
-import { CommonModule } from './common/common.module';
 import * as Joi from 'joi';
 import { join } from 'path';
+import { CommonModule } from './common/common.module';
 import configuration from 'config/configuration';
+import { UsersModule } from './users/users.module';
 import { User } from './users/entities/users.entity';
+import { AuthModule } from './auth/auth.module';
+import { AuthGuard } from './auth/auth.guard';
+import { AuthMiddleware } from './auth/auth.middleware';
 
 @Module({
     imports: [
@@ -19,10 +23,7 @@ import { User } from './users/entities/users.entity';
             plugins: [ApolloServerPluginLandingPageLocalDefault()],
             // autoSchemaFile: true,
             autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-            // formatError: (error) => {
-            //     console.dir('error Message: ' + error.message, { depth: null });
-            //     return error;
-            // },
+            context: ({ req }) => ({ user: req['user'] }),
         }),
         ConfigModule.forRoot({
             isGlobal: true,
@@ -38,6 +39,7 @@ import { User } from './users/entities/users.entity';
                 DATABASE_USERNAME: Joi.string().required(),
                 DATABASE_PASSWORD: Joi.string().required(),
                 DATABASE_NAME: Joi.string().required(),
+                JWT_SECRET: Joi.string().required(),
             }),
         }),
         TypeOrmModule.forRootAsync({
@@ -56,6 +58,12 @@ import { User } from './users/entities/users.entity';
         }),
         UsersModule,
         CommonModule,
+        AuthModule,
     ],
+    providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        consumer.apply(AuthMiddleware).forRoutes('/graphql');
+    }
+}

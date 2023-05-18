@@ -34,4 +34,8 @@ export class User extends Common {
     async hashPassword(): Promise<void> {
         this.password = await bcrypt.hash(this.password, 10);
     }
+
+    async checkPassword(password: string): Promise<boolean> {
+        return bcrypt.compare(password, this.password);
+    }
 }
