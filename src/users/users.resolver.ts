@@ -1,4 +1,5 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
+import { InternalServerErrorException, UseGuards } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
@@ -8,11 +9,16 @@ import {
     LoginInput,
     LoginOutPut,
 } from './dtos/create-account.dto';
-import { InternalServerErrorException } from '@nestjs/common';
+import { JwtService } from 'src/jwt/jwt.service';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { AuthUser } from 'src/auth/auth-user.decorator';
 
 @Resolver((of) => User)
 export class UsersResolver {
-    constructor(private readonly service: UsersService) {}
+    constructor(
+        private readonly service: UsersService,
+        private readonly jwtService: JwtService,
+    ) {}
 
     @Query((returns) => String)
     hello() {
@@ -56,10 +62,19 @@ export class UsersResolver {
                 return { ok: false, error: 'Password wrong' };
             }
 
-            return { ok: true, token: 'example token' };
+            // Jwt token
+            const token: string = this.jwtService.sign(user.id);
+
+            return { ok: true, token };
         } catch (error) {
             console.error(error);
             throw new InternalServerErrorException();
         }
+    }
+
+    @Query((returns) => User)
+    @UseGuards(AuthGuard)
+    async me(@AuthUser() user) {
+        return user;
     }
 }

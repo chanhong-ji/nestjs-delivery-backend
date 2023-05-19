@@ -1,15 +1,22 @@
-import { Module } from '@nestjs/common';
+import {
+    MiddlewareConsumer,
+    Module,
+    NestModule,
+    RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from './users/users.module';
-import { CommonModule } from './common/common.module';
 import * as Joi from 'joi';
 import { join } from 'path';
 import configuration from 'config/configuration';
+import { UsersModule } from './users/users.module';
+import { CommonModule } from './common/common.module';
 import { User } from './users/entities/users.entity';
+import { JwtModule } from './jwt/jwt.module';
+import { JwtMiddleware } from './jwt/jwt.middleware';
 
 @Module({
     imports: [
@@ -23,6 +30,7 @@ import { User } from './users/entities/users.entity';
             //     console.dir('error Message: ' + error.message, { depth: null });
             //     return error;
             // },
+            context: ({ req }) => ({ user: req.user }),
         }),
         ConfigModule.forRoot({
             isGlobal: true,
@@ -54,8 +62,15 @@ import { User } from './users/entities/users.entity';
             }),
             inject: [ConfigService],
         }),
+        JwtModule.forRoot({ secretKey: process.env.JWT_SECRET }),
         UsersModule,
         CommonModule,
     ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        consumer
+            .apply(JwtMiddleware)
+            .forRoutes({ path: '/graphql', method: RequestMethod.ALL });
+    }
+}

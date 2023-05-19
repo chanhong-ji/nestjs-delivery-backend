@@ -11,6 +11,10 @@ export class UsersService {
         private readonly repo: Repository<User>,
     ) {}
 
+    async findById(id: number): Promise<User> {
+        return this.repo.findOne({ where: { id } });
+    }
+
     async findByEmail(email: string): Promise<User> {
         return this.repo.findOne({ where: { email } });
     }

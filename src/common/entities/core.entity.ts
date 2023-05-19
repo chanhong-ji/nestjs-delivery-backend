@@ -1,11 +1,13 @@
-import { Field } from '@nestjs/graphql';
-import { isNumber } from 'class-validator';
+import { Field, ObjectType } from '@nestjs/graphql';
 import {
     PrimaryGeneratedColumn,
     UpdateDateColumn,
     CreateDateColumn,
+    Entity,
 } from 'typeorm';
 
+@ObjectType()
+@Entity()
 export class Common {
     @Field((type) => Number)
     @PrimaryGeneratedColumn()
