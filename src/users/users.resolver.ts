@@ -11,7 +11,7 @@ import { LoginInput, LoginOutPut } from './dtos/login.dto';
 import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
 import { Public } from 'src/auth/decorators/auth.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
-import { editProfileInput, editProfileOutput } from './dtos/update-profile.dot';
+import { editProfileInput, editProfileOutput } from './dtos/edit-profile.dto';
 
 @Resolver((of) => User)
 export class UsersResolver {
