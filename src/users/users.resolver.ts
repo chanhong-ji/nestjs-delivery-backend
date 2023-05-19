@@ -2,15 +2,16 @@ import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
 import { InternalServerErrorException } from '@nestjs/common';
 import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
+import { AuthService } from 'src/auth/auth.service';
 import {
     CreateAccountInput,
     CreateAccountOutput,
-    LoginInput,
-    LoginOutPut,
 } from './dtos/create-account.dto';
-import { Public } from 'src/auth/auth.decorator';
-import { AuthService } from 'src/auth/auth.service';
-import { AuthContext } from './interfaces/context.interface';
+import { LoginInput, LoginOutPut } from './dtos/login.dto';
+import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
+import { Public } from 'src/auth/decorators/auth.decorator';
+import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
+import { editProfileInput, editProfileOutput } from './dtos/update-profile.dot';
 
 @Resolver((of) => User)
 export class UsersResolver {
@@ -18,12 +19,6 @@ export class UsersResolver {
         private readonly service: UsersService,
         private authService: AuthService,
     ) {}
-
-    @Public()
-    @Query((returns) => String)
-    hello() {
-        return 'hello';
-    }
 
     @Public()
     @Mutation((returns) => CreateAccountOutput)
@@ -70,7 +65,46 @@ export class UsersResolver {
     }
 
     @Query((returns) => User)
-    me(@Context() ctx: AuthContext) {
-        return ctx.user;
+    me(@AuthUser() user: User): User {
+        return user;
+    }
+
+    @Query((returns) => UserProfileOutput)
+    async userProfile(
+        @Args() userProfileInput: UserProfileInput,
+    ): Promise<UserProfileOutput> {
+        try {
+            const user = await this.service.findById(userProfileInput.userId);
+
+            if (!user) {
+                return { ok: false, error: 'User not found' };
+            }
+
+            return { ok: true, user };
+        } catch (error) {
+            console.error(error);
+            throw new InternalServerErrorException();
+        }
+    }
+
+    @Mutation((returns) => editProfileOutput)
+    async editProfile(
+        @Args() editProfileInput: editProfileInput,
+        @AuthUser() user: User,
+    ): Promise<editProfileOutput> {
+        try {
+            if (user.id !== editProfileInput.userId) {
+                return {
+                    ok: false,
+                    error: 'Not authorized',
+                };
+            }
+
+            const updatedUser = await this.service.update(editProfileInput);
+            return { ok: true, user: updatedUser };
+        } catch (error) {
+            console.error(error);
+            throw new InternalServerErrorException();
+        }
     }
 }

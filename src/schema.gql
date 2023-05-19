@@ -33,12 +33,31 @@ type LoginOutPut {
   token: String
 }
 
+type PublicUser {
+  id: Float!
+  email: String!
+  role: UserRole!
+}
+
+type UserProfileOutput {
+  ok: Boolean!
+  error: String
+  user: PublicUser
+}
+
+type editProfileOutput {
+  ok: Boolean!
+  error: String
+  user: User
+}
+
 type Query {
-  hello: String!
   me: User!
+  userProfile(userId: Float!): UserProfileOutput!
 }
 
 type Mutation {
   createAccount(email: String!, password: String!, role: UserRole!): CreateAccountOutput!
   login(email: String!, password: String!): LoginOutPut!
+  editProfile(email: String, password: String, userId: Float!): editProfileOutput!
 }

@@ -23,10 +23,8 @@ export class AuthMiddleware implements NestMiddleware {
             const payload = await this.authService.verify(token);
             const user = await this.userService.findById(payload.userId);
             req['user'] = user;
-            next();
         } catch (error) {
             if (error instanceof JsonWebTokenError) {
-                console.log(req);
             } else if (error instanceof TokenExpiredError) {
             }
         }
