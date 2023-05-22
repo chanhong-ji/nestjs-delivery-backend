@@ -8,7 +8,7 @@ import {
 
 @ObjectType()
 @Entity()
-export class Common {
+export class CoreEntity {
     @Field((type) => Number)
     @PrimaryGeneratedColumn()
     id: number;

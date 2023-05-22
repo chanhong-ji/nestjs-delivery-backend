@@ -11,4 +11,8 @@ export default () => ({
         secret: process.env.JWT_SECRET,
         expiresIn: parseInt(process.env.JWT_EXPIRESIN) || 60,
     },
+    mailgun: {
+        apiKey: process.env.MAILGUN_API_KEY,
+        domainName: process.env.MAILGUN_DOMAIN_NAME,
+    },
 });

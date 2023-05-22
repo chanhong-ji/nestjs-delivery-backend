@@ -1,8 +1,8 @@
-import { Entity, Column, BeforeInsert, BeforeUpdate } from 'typeorm';
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { Entity, Column, BeforeInsert, BeforeUpdate, AfterLoad } from 'typeorm';
 import { IsEnum, IsString } from 'class-validator';
 import * as bcrypt from 'bcrypt';
-import { Common } from 'src/common/entities/core.entity';
+import { CoreEntity } from 'src/common/entities/core.entity';
 
 enum UserRole {
     Client,
@@ -14,7 +14,9 @@ registerEnumType(UserRole, { name: 'UserRole' });
 
 @ObjectType()
 @Entity()
-export class User extends Common {
+export class User extends CoreEntity {
+    private originalPassword?: string;
+
     @Field((type) => String)
     @Column()
     @IsString()
@@ -30,10 +32,21 @@ export class User extends Common {
     @IsEnum(UserRole)
     role: UserRole;
 
+    @Field((type) => Boolean, { defaultValue: false })
+    @Column({ default: false })
+    verified: boolean;
+
+    @AfterLoad()
+    saveOriginPassword() {
+        this.originalPassword = this.password;
+    }
+
     @BeforeInsert()
     @BeforeUpdate()
     async hashPassword(): Promise<void> {
-        this.password = await bcrypt.hash(this.password, 10);
+        if (this.password !== this.originalPassword) {
+            this.password = await bcrypt.hash(this.password, 10);
+        }
     }
 
     async checkPassword(password: string): Promise<boolean> {

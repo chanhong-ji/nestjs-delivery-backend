@@ -10,7 +10,7 @@ import { User } from '../entities/users.entity';
 import { IsNumber } from 'class-validator';
 
 @ArgsType()
-export class editProfileInput extends PartialType(
+export class EditProfileInput extends PartialType(
     PickType(User, ['email', 'password']),
     ArgsType,
 ) {
@@ -20,7 +20,7 @@ export class editProfileInput extends PartialType(
 }
 
 @ObjectType()
-export class editProfileOutput extends CoreOutput {
+export class EditProfileOutput extends CoreOutput {
     @Field((returns) => User, { nullable: true })
     user?: User;
 }

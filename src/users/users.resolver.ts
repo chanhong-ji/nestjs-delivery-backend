@@ -11,7 +11,8 @@ import { LoginInput, LoginOutPut } from './dtos/login.dto';
 import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
 import { Public } from 'src/auth/decorators/auth.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
-import { editProfileInput, editProfileOutput } from './dtos/edit-profile.dto';
+import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
+import { VerifyCodeInput, VerifyCodeOutput } from './dtos/verify-code.dto';
 
 @Resolver((of) => User)
 export class UsersResolver {
@@ -31,7 +32,6 @@ export class UsersResolver {
             if (exist) {
                 return { ok: false, error: 'Email already taken' };
             }
-
             await this.service.create({ email, password, role });
             return { ok: true };
         } catch (error) {
@@ -87,24 +87,37 @@ export class UsersResolver {
         }
     }
 
-    @Mutation((returns) => editProfileOutput)
+    @Mutation((returns) => EditProfileOutput)
     async editProfile(
-        @Args() editProfileInput: editProfileInput,
+        @Args() EditProfileInput: EditProfileInput,
         @AuthUser() user: User,
-    ): Promise<editProfileOutput> {
+    ): Promise<EditProfileOutput> {
         try {
-            if (user.id !== editProfileInput.userId) {
+            if (user.id !== EditProfileInput.userId) {
                 return {
                     ok: false,
                     error: 'Not authorized',
                 };
             }
 
-            const updatedUser = await this.service.update(editProfileInput);
+            const updatedUser = await this.service.update(EditProfileInput);
             return { ok: true, user: updatedUser };
         } catch (error) {
             console.error(error);
             throw new InternalServerErrorException();
+        }
+    }
+
+    @Public()
+    @Mutation((returns) => VerifyCodeOutput)
+    async verifyEmailwithCode(
+        @Args() verifyCodeInput: VerifyCodeInput,
+    ): Promise<VerifyCodeOutput> {
+        try {
+            await this.service.verifyCode(verifyCodeInput);
+            return { ok: true };
+        } catch (error) {
+            return { ok: false, error: 'Verification Fails' };
         }
     }
 }

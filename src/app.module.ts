@@ -14,6 +14,8 @@ import { User } from './users/entities/users.entity';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthMiddleware } from './auth/auth.middleware';
+import { Verification } from './users/entities/verifications.entity';
+import { MailModule } from './mail/mail.module';
 
 @Module({
     imports: [
@@ -40,6 +42,9 @@ import { AuthMiddleware } from './auth/auth.middleware';
                 DATABASE_PASSWORD: Joi.string().required(),
                 DATABASE_NAME: Joi.string().required(),
                 JWT_SECRET: Joi.string().required(),
+                JWT_EXPIRESIN: Joi.number(),
+                MAILGUN_API_KEY: Joi.string().required(),
+                MAILGUN_DOMAIN_NAME: Joi.string().required(),
             }),
         }),
         TypeOrmModule.forRootAsync({
@@ -51,7 +56,8 @@ import { AuthMiddleware } from './auth/auth.middleware';
                 username: configService.get('database.username'),
                 password: configService.get('database.password'),
                 database: configService.get('database.name'),
-                entities: [User], //autoLoadEntities
+                entities: [User, Verification],
+                // autoLoadEntities: true,
                 synchronize: process.env.NODE_ENV !== 'prod',
             }),
             inject: [ConfigService],
@@ -59,6 +65,7 @@ import { AuthMiddleware } from './auth/auth.middleware';
         UsersModule,
         CommonModule,
         AuthModule,
+        MailModule,
     ],
     providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })
