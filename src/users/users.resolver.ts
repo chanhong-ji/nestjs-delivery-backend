@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
-import { InternalServerErrorException } from '@nestjs/common';
+import { Inject, InternalServerErrorException } from '@nestjs/common';
 import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
 import { AuthService } from 'src/auth/auth.service';
@@ -35,7 +35,7 @@ export class UsersResolver {
             await this.service.create({ email, password, role });
             return { ok: true };
         } catch (error) {
-            console.error(error);
+            //console.error(error);
             throw new InternalServerErrorException();
         }
     }
@@ -59,13 +59,13 @@ export class UsersResolver {
                 return { ok: true, token };
             }
         } catch (error) {
-            console.error(error);
+            //console.error(error);
             throw new InternalServerErrorException();
         }
     }
 
     @Query((returns) => User)
-    me(@AuthUser() user: User): User {
+    me(@AuthUser() user): User {
         return user;
     }
 
@@ -82,7 +82,7 @@ export class UsersResolver {
 
             return { ok: true, user };
         } catch (error) {
-            console.error(error);
+            //console.error(error);
             throw new InternalServerErrorException();
         }
     }
@@ -90,7 +90,7 @@ export class UsersResolver {
     @Mutation((returns) => EditProfileOutput)
     async editProfile(
         @Args() EditProfileInput: EditProfileInput,
-        @AuthUser() user: User,
+        @AuthUser() user,
     ): Promise<EditProfileOutput> {
         try {
             if (user.id !== EditProfileInput.userId) {
@@ -103,7 +103,7 @@ export class UsersResolver {
             const updatedUser = await this.service.update(EditProfileInput);
             return { ok: true, user: updatedUser };
         } catch (error) {
-            console.error(error);
+            //console.error(error);
             throw new InternalServerErrorException();
         }
     }
