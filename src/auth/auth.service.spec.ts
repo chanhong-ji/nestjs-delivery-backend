@@ -39,7 +39,7 @@ describe('AuthService', () => {
     });
 
     describe('sign', () => {
-        it('return success', async () => {
+        it('return', async () => {
             const userId = faker.number.int(3);
 
             const result = await service.sign(userId);

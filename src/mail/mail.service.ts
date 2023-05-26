@@ -11,7 +11,7 @@ export class MailService {
         private readonly options: MailModuleOptions,
     ) {}
 
-    private async sendEmail(
+    async sendEmail(
         email: string,
         templateVariables: EmailVar[],
         template: EmailTemplate,
@@ -43,23 +43,28 @@ export class MailService {
             },
             body: form,
         };
-        await fetch(url, fetchOptions).then((res) => res.json());
+
+        await fetch(url, fetchOptions);
     }
 
     private encodingText(text: string): string {
         return Buffer.from(text).toString('base64');
     }
 
-    async sendVerificationEmail(email: string, code: string) {
+    async sendVerificationEmail(email: string, code: string): Promise<boolean> {
         try {
+            const TEMPLATE = 'verify-email';
             await this.sendEmail(
                 email,
                 [
                     { key: 'code', value: code },
                     { key: 'username', value: email },
                 ],
-                'verify-email',
+                TEMPLATE,
             );
-        } catch (error) {}
+            return true;
+        } catch (error) {
+            return false;
+        }
     }
 }
