@@ -7,15 +7,18 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as Joi from 'joi';
 import { join } from 'path';
-import { CommonModule } from './common/common.module';
 import configuration from 'config/configuration';
-import { UsersModule } from './users/users.module';
-import { User } from './users/entities/users.entity';
-import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthMiddleware } from './auth/auth.middleware';
-import { Verification } from './users/entities/verifications.entity';
+import { CommonModule } from './common/common.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
+import { User } from './users/entities/users.entity';
+import { Verification } from './users/entities/verifications.entity';
+import { Restaurant } from './restaurants/entities/restaurant.entity';
+import { Category } from './restaurants/entities/category.entity';
 
 @Module({
     imports: [
@@ -56,7 +59,7 @@ import { MailModule } from './mail/mail.module';
                 username: configService.get('database.username'),
                 password: configService.get('database.password'),
                 database: configService.get('database.name'),
-                entities: [User, Verification],
+                entities: [User, Verification, Restaurant, Category],
                 // autoLoadEntities: true,
                 synchronize: process.env.NODE_ENV !== 'prod',
             }),
@@ -66,6 +69,7 @@ import { MailModule } from './mail/mail.module';
         CommonModule,
         AuthModule,
         MailModule,
+        RestaurantsModule,
     ],
     providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })

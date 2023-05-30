@@ -2,6 +2,30 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type Category {
+  id: Float!
+  updatedAt: DateTime!
+  createdAt: DateTime!
+  name: String!
+  restaurants: [Restaurant!]!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Restaurant {
+  id: Float!
+  updatedAt: DateTime!
+  createdAt: DateTime!
+  name: String!
+  coverImage: String
+  address: String!
+  category: Category
+  user: User!
+}
+
 type User {
   id: Float!
   updatedAt: DateTime!
@@ -10,12 +34,8 @@ type User {
   password: String!
   role: UserRole!
   verified: Boolean!
+  restaurants: [Restaurant!]!
 }
-
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
 
 enum UserRole {
   Client
@@ -57,14 +77,27 @@ type VerifyCodeOutput {
   error: String
 }
 
+type CreateRestaurantOutput {
+  ok: Boolean!
+  error: String
+}
+
+type CreateCategoryOutput {
+  ok: Boolean!
+  error: String
+}
+
 type Query {
   me: User!
   userProfile(userId: Float!): UserProfileOutput!
+  getAll: [Restaurant!]!
 }
 
 type Mutation {
   createAccount(email: String!, password: String!, role: UserRole!): CreateAccountOutput!
   login(email: String!, password: String!): LoginOutPut!
   editProfile(email: String, password: String, userId: Float!): EditProfileOutput!
-  verifyEmail(code: String!): VerifyCodeOutput!
+  verifyEmailwithCode(code: String!): VerifyCodeOutput!
+  createCategory(name: String!): CreateCategoryOutput!
+  createRestaurant(name: String!, coverImage: String, address: String!, categoryId: Float!): CreateRestaurantOutput!
 }

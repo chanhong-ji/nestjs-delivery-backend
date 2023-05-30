@@ -1,5 +1,5 @@
-import { Resolver, Query, Mutation, Args, Context } from '@nestjs/graphql';
-import { Inject, InternalServerErrorException } from '@nestjs/common';
+import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { InternalServerErrorException } from '@nestjs/common';
 import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
 import { AuthService } from 'src/auth/auth.service';
@@ -9,7 +9,7 @@ import {
 } from './dtos/create-account.dto';
 import { LoginInput, LoginOutPut } from './dtos/login.dto';
 import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
-import { Public } from 'src/auth/decorators/auth.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
 import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
 import { VerifyCodeInput, VerifyCodeOutput } from './dtos/verify-code.dto';
