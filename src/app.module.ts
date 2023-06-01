@@ -1,14 +1,12 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
-import { APP_GUARD } from '@nestjs/core';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as Joi from 'joi';
 import { join } from 'path';
 import configuration from 'config/configuration';
-import { AuthGuard } from './auth/auth.guard';
 import { AuthMiddleware } from './auth/auth.middleware';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
@@ -71,7 +69,6 @@ import { Category } from './restaurants/entities/category.entity';
         MailModule,
         RestaurantsModule,
     ],
-    providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {
