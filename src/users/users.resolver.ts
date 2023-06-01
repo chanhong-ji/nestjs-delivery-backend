@@ -1,5 +1,4 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
-import { InternalServerErrorException } from '@nestjs/common';
 import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
 import { AuthService } from 'src/auth/auth.service';
@@ -16,6 +15,8 @@ import { VerifyCodeInput, VerifyCodeOutput } from './dtos/verify-code.dto';
 
 @Resolver((of) => User)
 export class UsersResolver {
+    DB_ERROR = 'DB error';
+
     constructor(
         private readonly service: UsersService,
         private authService: AuthService,
@@ -24,19 +25,18 @@ export class UsersResolver {
     @Public()
     @Mutation((returns) => CreateAccountOutput)
     async createAccount(
-        @Args() { email, password, role }: CreateAccountInput,
+        @Args() args: CreateAccountInput,
     ): Promise<CreateAccountOutput> {
         try {
             // Check if email is already taken
-            const exist = await this.service.findByEmail(email);
+            const exist = await this.service.findByEmail(args.email);
             if (exist) {
                 return { ok: false, error: 'Email already taken' };
             }
-            await this.service.create({ email, password, role });
+            await this.service.create(args);
             return { ok: true };
         } catch (error) {
-            //console.error(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
@@ -59,8 +59,7 @@ export class UsersResolver {
                 return { ok: true, token };
             }
         } catch (error) {
-            //console.error(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
@@ -71,10 +70,10 @@ export class UsersResolver {
 
     @Query((returns) => UserProfileOutput)
     async userProfile(
-        @Args() userProfileInput: UserProfileInput,
+        @Args() args: UserProfileInput,
     ): Promise<UserProfileOutput> {
         try {
-            const user = await this.service.findById(userProfileInput.userId);
+            const user = await this.service.findById(args.userId);
 
             if (!user) {
                 return { ok: false, error: 'User not found' };
@@ -82,35 +81,30 @@ export class UsersResolver {
 
             return { ok: true, user };
         } catch (error) {
-            //console.error(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
     @Mutation((returns) => EditProfileOutput)
     async editProfile(
-        @Args() EditProfileInput: EditProfileInput,
+        @Args() args: EditProfileInput,
         @AuthUser() user,
     ): Promise<EditProfileOutput> {
         try {
-            const updatedUser = await this.service.update(
-                user,
-                EditProfileInput,
-            );
+            const updatedUser = await this.service.update(user, args);
             return { ok: true, user: updatedUser };
         } catch (error) {
-            //console.error(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
     @Public()
     @Mutation((returns) => VerifyCodeOutput)
     async verifyEmailwithCode(
-        @Args() verifyCodeInput: VerifyCodeInput,
+        @Args() args: VerifyCodeInput,
     ): Promise<VerifyCodeOutput> {
         try {
-            await this.service.verifyCode(verifyCodeInput);
+            await this.service.verifyCode(args.code);
             return { ok: true };
         } catch (error) {
             return { ok: false, error: 'Verification Fails' };

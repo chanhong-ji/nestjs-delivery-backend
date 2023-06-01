@@ -1,4 +1,4 @@
-import { ArgsType, Field, ObjectType, PickType } from '@nestjs/graphql';
+import { ArgsType, Field, Int, ObjectType, PickType } from '@nestjs/graphql';
 import { IsNumber } from 'class-validator';
 import { User } from '../entities/users.entity';
 import { CoreOutput } from 'src/common/dtos/output.dto';
@@ -8,7 +8,7 @@ export class PublicUser extends PickType(User, ['email', 'id', 'role']) {}
 
 @ArgsType()
 export class UserProfileInput {
-    @Field((type) => Number)
+    @Field((type) => Int)
     @IsNumber()
     userId: number;
 }

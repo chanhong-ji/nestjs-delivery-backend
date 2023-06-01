@@ -7,7 +7,6 @@ import {
 } from '@nestjs/graphql';
 import { CoreOutput } from 'src/common/dtos/output.dto';
 import { User } from '../entities/users.entity';
-import { IsNumber } from 'class-validator';
 
 @ArgsType()
 export class EditProfileInput extends PartialType(

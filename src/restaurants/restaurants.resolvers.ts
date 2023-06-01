@@ -43,6 +43,7 @@ export class RestaurantsResolver {
     RESTAURANT_NOT_FOUND_ERROR = 'Restaurant not found';
     RESTAURANT_NOT_AUTHORIZED_ERROR = 'Restaurant not authorized';
     CATEGORY_NOT_FOUND_ERROR = 'Category not found';
+    DB_ERROR = 'DB error';
 
     constructor(
         private readonly service: RestaurantsService,
@@ -62,17 +63,17 @@ export class RestaurantsResolver {
             return { ok: true, restaurant };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
     @Query((returns) => RestaurantsOutput)
     async restaurants(
-        @Args() data: RestaurantsInput,
+        @Args() args: RestaurantsInput,
     ): Promise<RestaurantsOutput> {
         try {
             const category = await this.service.findCategoryById(
-                data.categoryId,
+                args.categoryId,
             );
 
             if (!category)
@@ -80,8 +81,8 @@ export class RestaurantsResolver {
 
             const [restaurants, totalItems] =
                 await this.service.findAllByCategory(
-                    data.categoryId,
-                    data.page,
+                    args.categoryId,
+                    args.page,
                 );
 
             return {
@@ -92,43 +93,43 @@ export class RestaurantsResolver {
             };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
     @Mutation((returns) => CreateRestaurantOutput)
     @Role(['Owner'])
     async createRestaurant(
-        @Args() data: CreateRestaurantInput,
+        @Args() args: CreateRestaurantInput,
         @AuthUser() user: User,
     ): Promise<CreateRestaurantOutput> {
         try {
             // When category not found
             const category = await this.service.findCategoryById(
-                data.categoryId,
+                args.categoryId,
             );
             if (!category)
                 return { ok: false, error: this.CATEGORY_NOT_FOUND_ERROR };
 
-            await this.service.create(user.id, data);
+            await this.service.create(user.id, args);
 
             return {
                 ok: true,
             };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
     @Mutation((returns) => EditRestaurantOutput)
     @Role(['Owner'])
     async editRestaurant(
-        @Args() data: EditRestaurantInput,
+        @Args() args: EditRestaurantInput,
         @AuthUser() user: User,
     ): Promise<EditRestaurantOutput> {
         try {
-            const restaurant = await this.service.findById(data.restaurantId);
+            const restaurant = await this.service.findById(args.restaurantId);
             if (!restaurant)
                 return { ok: false, error: this.RESTAURANT_NOT_FOUND_ERROR };
 
@@ -138,11 +139,11 @@ export class RestaurantsResolver {
                     error: this.RESTAURANT_NOT_AUTHORIZED_ERROR,
                 };
 
-            await this.service.update(restaurant, data);
+            await this.service.update(restaurant, args);
             return { ok: true };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
@@ -169,7 +170,7 @@ export class RestaurantsResolver {
             return { ok: true };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
@@ -190,7 +191,7 @@ export class RestaurantsResolver {
             };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 }
@@ -198,6 +199,7 @@ export class RestaurantsResolver {
 @Resolver((of) => Category)
 export class CategoriesResolver {
     CATEGORY_EXISTS_ERROR = 'Category already exists';
+    DB_ERROR = 'DB error';
 
     constructor(private readonly service: RestaurantsService) {}
 
@@ -214,28 +216,26 @@ export class CategoriesResolver {
             return { ok: true, categories };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 
     @Role(['Admin'])
     @Mutation((returns) => CreateCategoryOutput)
     async createCategory(
-        @Args() createCategoryInput: CreateCategoryInput,
+        @Args() args: CreateCategoryInput,
     ): Promise<CreateCategoryOutput> {
         try {
-            const category = await this.service.findCategoryByName(
-                createCategoryInput.name,
-            );
+            const category = await this.service.findCategoryByName(args.name);
             if (category) {
                 return { ok: false, error: this.CATEGORY_EXISTS_ERROR };
             }
 
-            await this.service.createCategory(createCategoryInput.name);
+            await this.service.createCategory(args.name);
             return { ok: true };
         } catch (error) {
             console.log(error);
-            throw new InternalServerErrorException();
+            return { ok: false, error: this.DB_ERROR };
         }
     }
 }

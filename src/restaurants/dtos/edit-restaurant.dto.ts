@@ -1,15 +1,15 @@
-import { ArgsType, Field, ObjectType, PartialType } from '@nestjs/graphql';
+import { ArgsType, Field, Int, ObjectType, PartialType } from '@nestjs/graphql';
 import { CoreOutput } from 'src/common/dtos/output.dto';
 import { IsNumber } from 'class-validator';
 import { CreateRestaurantInput } from './create-restaurant.dto';
 
 @ArgsType()
 export class EditRestaurantInput extends PartialType(CreateRestaurantInput) {
-    @Field((type) => Number)
+    @Field((type) => Int)
     @IsNumber()
     restaurantId: number;
 
-    @Field((type) => Number, { nullable: true })
+    @Field((type) => Int, { nullable: true })
     @IsNumber()
     categoryId?: number;
 }

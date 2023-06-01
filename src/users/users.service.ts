@@ -5,7 +5,6 @@ import { User } from './entities/users.entity';
 import { Verification } from './entities/verifications.entity';
 import { CreateAccountInput } from './dtos/create-account.dto';
 import { EditProfileInput } from './dtos/edit-profile.dto';
-import { VerifyCodeInput } from './dtos/verify-code.dto';
 import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
@@ -41,13 +40,12 @@ export class UsersService {
     }
 
     async update(user, data: EditProfileInput): Promise<User> {
-        // Object.keys(data).forEach((key) => (user[key] = data[key]));
         return this.repo.save({ ...user, ...data });
     }
 
-    async verifyCode(data: VerifyCodeInput): Promise<void> {
+    async verifyCode(code: string): Promise<void> {
         const verification = await this.verificationService.findOne({
-            where: { code: data.code },
+            where: { code },
             relations: ['user'],
         });
 
