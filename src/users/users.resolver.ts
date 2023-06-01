@@ -93,14 +93,10 @@ export class UsersResolver {
         @AuthUser() user,
     ): Promise<EditProfileOutput> {
         try {
-            if (user.id !== EditProfileInput.userId) {
-                return {
-                    ok: false,
-                    error: 'Not authorized',
-                };
-            }
-
-            const updatedUser = await this.service.update(EditProfileInput);
+            const updatedUser = await this.service.update(
+                user,
+                EditProfileInput,
+            );
             return { ok: true, user: updatedUser };
         } catch (error) {
             //console.error(error);

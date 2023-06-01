@@ -11,13 +11,9 @@ import { IsNumber } from 'class-validator';
 
 @ArgsType()
 export class EditProfileInput extends PartialType(
-    PickType(User, ['email', 'password']),
+    PickType(User, ['email', 'password', 'role']),
     ArgsType,
-) {
-    @Field((returns) => Number)
-    @IsNumber()
-    userId: number;
-}
+) {}
 
 @ObjectType()
 export class EditProfileOutput extends CoreOutput {

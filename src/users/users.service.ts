@@ -40,12 +40,9 @@ export class UsersService {
         return true;
     }
 
-    async update({ userId, ...data }: EditProfileInput): Promise<User> {
-        const user = await this.findById(userId);
-
-        Object.keys(data).forEach((key) => (user[key] = data[key]));
-
-        return this.repo.save(user);
+    async update(user, data: EditProfileInput): Promise<User> {
+        // Object.keys(data).forEach((key) => (user[key] = data[key]));
+        return this.repo.save({ ...user, ...data });
     }
 
     async verifyCode(data: VerifyCodeInput): Promise<void> {
