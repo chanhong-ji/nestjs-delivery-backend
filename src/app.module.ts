@@ -17,6 +17,7 @@ import { User } from './users/entities/users.entity';
 import { Verification } from './users/entities/verifications.entity';
 import { Restaurant } from './restaurants/entities/restaurant.entity';
 import { Category } from './restaurants/entities/category.entity';
+import { Dish } from './restaurants/entities/dish.entity';
 
 @Module({
     imports: [
@@ -57,7 +58,7 @@ import { Category } from './restaurants/entities/category.entity';
                 username: configService.get('database.username'),
                 password: configService.get('database.password'),
                 database: configService.get('database.name'),
-                entities: [User, Verification, Restaurant, Category],
+                entities: [User, Verification, Restaurant, Category, Dish],
                 // autoLoadEntities: true,
                 synchronize: process.env.NODE_ENV !== 'prod',
             }),

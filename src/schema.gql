@@ -16,6 +16,30 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type DishChoice {
+  name: String!
+  extra: Int!
+}
+
+type DishOption {
+  name: String!
+  choices: [DishChoice!]
+  extra: Int
+}
+
+type Dish {
+  id: Int!
+  updatedAt: DateTime!
+  createdAt: DateTime!
+  name: String!
+  price: Int!
+  photo: String!
+  description: String!
+  restaurant: Restaurant!
+  restaurantId: Int!
+  dishOptions: [DishOption!]
+}
+
 type Restaurant {
   id: Int!
   updatedAt: DateTime!
@@ -24,7 +48,9 @@ type Restaurant {
   coverImage: String
   address: String!
   category: Category
-  user: User!
+  owner: User!
+  ownerId: Int!
+  menu: [Dish!]!
 }
 
 type User {
@@ -107,31 +133,46 @@ type RestaurantOutput {
 type RestaurantsOutput {
   ok: Boolean!
   error: String
-  totalPages: Float
-  totalItems: Float
-  result: [Restaurant!]!
+  totalPages: Int
+  totalItems: Int
+  result: [Restaurant!]
 }
 
 type SeeCategoriesOutput {
   ok: Boolean!
   error: String
-  categories: [Category!]!
+  categories: [Category!]
 }
 
 type SearchRestaurantOutput {
   ok: Boolean!
   error: String
-  totalPages: Float
-  totalItems: Float
+  totalPages: Int
+  totalItems: Int
   result: [Restaurant!]
+}
+
+type CreateDishOutput {
+  ok: Boolean!
+  error: String
+}
+
+type EditDishOutput {
+  ok: Boolean!
+  error: String
+}
+
+type DeleteDishOutput {
+  ok: Boolean!
+  error: String
 }
 
 type Query {
   me: User!
-  userProfile(userId: Float!): UserProfileOutput!
+  userProfile(userId: Int!): UserProfileOutput!
   restaurant(id: Int!): RestaurantOutput!
-  restaurants(page: Float! = 1, categoryId: Float!): RestaurantsOutput!
-  searchRestaurant(page: Float! = 1, query: String!): SearchRestaurantOutput!
+  restaurants(page: Int! = 1, categoryId: Int!): RestaurantsOutput!
+  searchRestaurant(page: Int! = 1, query: String!): SearchRestaurantOutput!
   seeCategories: SeeCategoriesOutput!
 }
 
@@ -140,8 +181,22 @@ type Mutation {
   login(email: String!, password: String!): LoginOutPut!
   editProfile(email: String, password: String, role: UserRole): EditProfileOutput!
   verifyEmailwithCode(code: String!): VerifyCodeOutput!
-  createRestaurant(name: String!, coverImage: String, address: String!, categoryId: Float!): CreateRestaurantOutput!
-  editRestaurant(name: String, coverImage: String, address: String, categoryId: Float, restaurantId: Float!): EditRestaurantOutput!
+  createRestaurant(name: String!, coverImage: String, address: String!, categoryId: Int!): CreateRestaurantOutput!
+  editRestaurant(name: String, coverImage: String, address: String, categoryId: Int, restaurantId: Int!): EditRestaurantOutput!
   deleteRestaurant(id: Int!): DeleteRestaurantOutput!
   createCategory(name: String!): CreateCategoryOutput!
+  createDish(name: String!, price: Int!, photo: String!, description: String!, restaurantId: Int!, dishOptions: [dishOption!]): CreateDishOutput!
+  editDish(name: String, price: Int, photo: String, description: String, dishOptions: [dishOption!], id: Int!): EditDishOutput!
+  deleteDish(id: Int!): DeleteDishOutput!
+}
+
+input dishOption {
+  name: String!
+  choices: [dishChoice!]
+  extra: Int
+}
+
+input dishChoice {
+  name: String!
+  extra: Int!
 }

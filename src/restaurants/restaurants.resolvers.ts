@@ -7,9 +7,13 @@ import {
     ResolveField,
     Resolver,
 } from '@nestjs/graphql';
-import { Inject, InternalServerErrorException } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
+import { Restaurant } from './entities/restaurant.entity';
 import { User } from 'src/users/entities/users.entity';
+import { Category } from './entities/category.entity';
+import { Dish } from './entities/dish.entity';
 import { RestaurantsService } from './restaurants.service';
+import { Public } from 'src/auth/decorators/public.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
 import { Role } from 'src/auth/decorators/roles.decorator';
 import {
@@ -30,19 +34,21 @@ import {
 } from './dtos/delete-restaurant.dto';
 import { RestaurantInput, RestaurantOutput } from './dtos/see-restaurant.dto';
 import { RestaurantsInput, RestaurantsOutput } from './dtos/restaurants.dto';
-import { Public } from 'src/auth/decorators/public.decorator';
 import { SeeCategoriesOutput } from './dtos/see-categories.dto';
-import { Category } from './entities/category.entity';
 import {
     SearchRestaurantInput,
     SearchRestaurantOutput,
 } from './dtos/search-restaurant.dto';
+import { CreateDishInput, CreateDishOutput } from './dtos/create-dish.dto';
+import { EditDishInput, EditDishOutput } from './dtos/edit-dish.dto';
+import { DeleteDishInput, DeleteDishOutput } from './dtos/delete-dish.dto';
+import { CoreOutput } from 'src/common/dtos/output.dto';
 
 @Resolver()
 export class RestaurantsResolver {
     RESTAURANT_NOT_FOUND_ERROR = 'Restaurant not found';
-    RESTAURANT_NOT_AUTHORIZED_ERROR = 'Restaurant not authorized';
     CATEGORY_NOT_FOUND_ERROR = 'Category not found';
+    NOT_AUTHORIZED_ERROR = 'Not authorized';
     DB_ERROR = 'DB error';
 
     constructor(
@@ -50,15 +56,34 @@ export class RestaurantsResolver {
         @Inject('PER_PAGE') private readonly PER_PAGE,
     ) {}
 
+    private async restaurantValidation(
+        restaurant: Restaurant,
+        user: User | null,
+    ) {
+        if (!restaurant)
+            return { ok: false, error: this.RESTAURANT_NOT_FOUND_ERROR };
+
+        if (user && restaurant.ownerId !== user.id)
+            return { ok: false, error: this.NOT_AUTHORIZED_ERROR };
+    }
+
+    private async categoryValidation(category: Category) {
+        if (!category)
+            return { ok: false, error: this.CATEGORY_NOT_FOUND_ERROR };
+    }
+
     @Query((returns) => RestaurantOutput)
     async restaurant(
         @Args() { id }: RestaurantInput,
     ): Promise<RestaurantOutput> {
         try {
-            const restaurant = await this.service.findById(id);
+            const restaurant = await this.service.findByIdWithMenu(id);
 
-            if (!restaurant)
-                return { ok: false, error: this.RESTAURANT_NOT_FOUND_ERROR };
+            const validationError = await this.restaurantValidation(
+                restaurant,
+                null,
+            );
+            if (validationError) return validationError;
 
             return { ok: true, restaurant };
         } catch (error) {
@@ -76,8 +101,8 @@ export class RestaurantsResolver {
                 args.categoryId,
             );
 
-            if (!category)
-                return { ok: false, error: this.CATEGORY_NOT_FOUND_ERROR };
+            const validationError = await this.categoryValidation(category);
+            if (validationError) return validationError;
 
             const [restaurants, totalItems] =
                 await this.service.findAllByCategory(
@@ -108,8 +133,8 @@ export class RestaurantsResolver {
             const category = await this.service.findCategoryById(
                 args.categoryId,
             );
-            if (!category)
-                return { ok: false, error: this.CATEGORY_NOT_FOUND_ERROR };
+            const validationError = await this.categoryValidation(category);
+            if (validationError) return validationError;
 
             await this.service.create(user.id, args);
 
@@ -130,14 +155,12 @@ export class RestaurantsResolver {
     ): Promise<EditRestaurantOutput> {
         try {
             const restaurant = await this.service.findById(args.restaurantId);
-            if (!restaurant)
-                return { ok: false, error: this.RESTAURANT_NOT_FOUND_ERROR };
 
-            if (restaurant.userId !== user.id)
-                return {
-                    ok: false,
-                    error: this.RESTAURANT_NOT_AUTHORIZED_ERROR,
-                };
+            const validationError = await this.restaurantValidation(
+                restaurant,
+                user,
+            );
+            if (validationError) return validationError;
 
             await this.service.update(restaurant, args);
             return { ok: true };
@@ -154,17 +177,13 @@ export class RestaurantsResolver {
         @AuthUser() user: User,
     ): Promise<DeleteRestaurantOutput> {
         try {
-            // Check if restaurant exists
             const restaurant = await this.service.findById(id);
-            if (!restaurant)
-                return { ok: false, error: this.RESTAURANT_NOT_FOUND_ERROR };
 
-            // Check if user is the owner of the restaurant
-            if (restaurant.user.id !== user.id)
-                return {
-                    ok: false,
-                    error: this.RESTAURANT_NOT_AUTHORIZED_ERROR,
-                };
+            const validationError = await this.restaurantValidation(
+                restaurant,
+                user,
+            );
+            if (validationError) return validationError;
 
             await this.service.delete(id);
             return { ok: true };
@@ -237,5 +256,97 @@ export class CategoriesResolver {
             console.log(error);
             return { ok: false, error: this.DB_ERROR };
         }
+    }
+}
+
+@Resolver((of) => Dish)
+export class DishesResolver {
+    CATEGORY_EXISTS_ERROR = 'Category already exists';
+    NOT_AUTHORIZED_ERROR = 'Not Authorized';
+    DB_ERROR = 'DB error';
+    RESTAURANT_NOT_FOUND = 'Restaurant not found';
+    DISH_NOT_FOUND = 'Dish not found';
+
+    constructor(private readonly service: RestaurantsService) {}
+
+    @Mutation((returns) => CreateDishOutput)
+    @Role(['Owner'])
+    async createDish(
+        @Args() args: CreateDishInput,
+        @AuthUser() user: User,
+    ): Promise<CreateDishOutput> {
+        try {
+            const restaurant = await this.service.findById(args.restaurantId);
+
+            const validationError = await this.restaurantValidation(
+                restaurant,
+                user,
+            );
+            if (validationError) return validationError;
+
+            await this.service.createDish(args);
+
+            return {
+                ok: true,
+            };
+        } catch (error) {
+            console.log(error);
+            return { ok: false, error: this.DB_ERROR };
+        }
+    }
+
+    @Mutation((returns) => EditDishOutput)
+    @Role(['Owner'])
+    async editDish(
+        @Args() args: EditDishInput,
+        @AuthUser() user: User,
+    ): Promise<EditDishOutput> {
+        try {
+            const dish = await this.service.findDishById(args.id);
+
+            const validationError = await this.dishValidation(dish, user);
+            if (validationError) return validationError;
+
+            await this.service.editDish(dish, args);
+
+            return {
+                ok: true,
+            };
+        } catch (error) {
+            console.log(error);
+            return { ok: false, error: this.DB_ERROR };
+        }
+    }
+
+    @Mutation((returns) => DeleteDishOutput)
+    @Role(['Owner'])
+    async deleteDish(@Args() { id }: DeleteDishInput, @AuthUser() user: User) {
+        try {
+            const dish = await this.service.findDishById(id);
+
+            const validationError = await this.dishValidation(dish, user);
+            if (validationError) return validationError;
+
+            await this.service.deleteDish(id);
+
+            return { ok: true };
+        } catch (error) {
+            console.log(error);
+            return { ok: false, error: this.DB_ERROR };
+        }
+    }
+
+    private async dishValidation(dish: Dish, user: User): Promise<CoreOutput> {
+        if (!dish) return { ok: false, error: this.DISH_NOT_FOUND };
+
+        if (dish.restaurant.ownerId !== user.id)
+            return { ok: false, error: this.NOT_AUTHORIZED_ERROR };
+    }
+
+    private async restaurantValidation(restaurant: Restaurant, user: User) {
+        if (!restaurant) return { ok: false, error: this.RESTAURANT_NOT_FOUND };
+
+        if (restaurant.ownerId !== user.id)
+            return { ok: false, error: this.NOT_AUTHORIZED_ERROR };
     }
 }

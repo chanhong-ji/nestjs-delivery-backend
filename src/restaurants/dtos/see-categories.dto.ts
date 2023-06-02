@@ -4,6 +4,6 @@ import { Category } from '../entities/category.entity';
 
 @ObjectType()
 export class SeeCategoriesOutput extends CoreOutput {
-    @Field((type) => [Category])
+    @Field((type) => [Category], { nullable: true })
     categories?: Category[];
 }
