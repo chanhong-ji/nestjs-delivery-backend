@@ -13,11 +13,13 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
+import { OrdersModule } from './orders/orders.module';
 import { User } from './users/entities/users.entity';
 import { Verification } from './users/entities/verifications.entity';
 import { Restaurant } from './restaurants/entities/restaurant.entity';
 import { Category } from './restaurants/entities/category.entity';
 import { Dish } from './restaurants/entities/dish.entity';
+import { Order } from './orders/entities/order.entity';
 
 @Module({
     imports: [
@@ -58,8 +60,7 @@ import { Dish } from './restaurants/entities/dish.entity';
                 username: configService.get('database.username'),
                 password: configService.get('database.password'),
                 database: configService.get('database.name'),
-                entities: [User, Verification, Restaurant, Category, Dish],
-                // autoLoadEntities: true,
+                autoLoadEntities: true,
                 synchronize: process.env.NODE_ENV !== 'prod',
             }),
             inject: [ConfigService],
@@ -69,6 +70,7 @@ import { Dish } from './restaurants/entities/dish.entity';
         AuthModule,
         MailModule,
         RestaurantsModule,
+        OrdersModule,
     ],
 })
 export class AppModule implements NestModule {

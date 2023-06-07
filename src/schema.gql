@@ -16,15 +16,9 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
-type DishChoice {
-  name: String!
-  extra: Int!
-}
-
 type DishOption {
   name: String!
-  choices: [DishChoice!]
-  extra: Int
+  extra: Int!
 }
 
 type Dish {
@@ -34,10 +28,45 @@ type Dish {
   name: String!
   price: Int!
   photo: String!
-  description: String!
+  description: String
   restaurant: Restaurant!
   restaurantId: Int!
   dishOptions: [DishOption!]
+}
+
+type OrderItemOption {
+  name: String!
+}
+
+type OrderItem {
+  id: Int!
+  updatedAt: DateTime!
+  createdAt: DateTime!
+  dish: Dish!
+  choices: [OrderItemOption!]
+}
+
+type Order {
+  id: Int!
+  updatedAt: DateTime!
+  createdAt: DateTime!
+  customer: User
+  customerId: Int!
+  driver: User
+  driverId: Int!
+  restaurant: Restaurant
+  restaurantId: Int!
+  items: [OrderItem!]!
+  total: Int!
+  status: OrderStatus!
+  address: String!
+}
+
+enum OrderStatus {
+  Pending
+  Cooking
+  PickedUp
+  Delivered
 }
 
 type Restaurant {
@@ -62,6 +91,8 @@ type User {
   role: UserRole!
   verified: Boolean!
   restaurants: [Restaurant!]!
+  orders: [Order!]!
+  rides: [Order!]!
 }
 
 enum UserRole {
@@ -167,6 +198,49 @@ type DeleteDishOutput {
   error: String
 }
 
+type CreateOrderOutput {
+  ok: Boolean!
+  error: String
+}
+
+type OrdersOutput {
+  ok: Boolean!
+  error: String
+  totalPages: Int
+  totalItems: Int
+  result: [Order!]
+}
+
+type OrderOutput {
+  ok: Boolean!
+  error: String
+  result: Order
+}
+
+type TakeOrderOutput {
+  ok: Boolean!
+  error: String
+}
+
+type PickUpOrderOutput {
+  ok: Boolean!
+  error: String
+}
+
+type DeliveredOrderOutput {
+  ok: Boolean!
+  error: String
+}
+
+type CancelOrderOutput {
+  ok: Boolean!
+  error: String
+}
+
+input orderItemOption {
+  name: String!
+}
+
 type Query {
   me: User!
   userProfile(userId: Int!): UserProfileOutput!
@@ -174,6 +248,8 @@ type Query {
   restaurants(page: Int! = 1, categoryId: Int!): RestaurantsOutput!
   searchRestaurant(page: Int! = 1, query: String!): SearchRestaurantOutput!
   seeCategories: SeeCategoriesOutput!
+  orders(page: Int! = 1, status: OrderStatus): OrdersOutput!
+  order(id: Int!): OrderOutput!
 }
 
 type Mutation {
@@ -185,18 +261,22 @@ type Mutation {
   editRestaurant(name: String, coverImage: String, address: String, categoryId: Int, restaurantId: Int!): EditRestaurantOutput!
   deleteRestaurant(id: Int!): DeleteRestaurantOutput!
   createCategory(name: String!): CreateCategoryOutput!
-  createDish(name: String!, price: Int!, photo: String!, description: String!, restaurantId: Int!, dishOptions: [dishOption!]): CreateDishOutput!
+  createDish(name: String!, price: Int!, photo: String!, description: String, restaurantId: Int!, dishOptions: [dishOption!]): CreateDishOutput!
   editDish(name: String, price: Int, photo: String, description: String, dishOptions: [dishOption!], id: Int!): EditDishOutput!
   deleteDish(id: Int!): DeleteDishOutput!
+  createOrder(restaurantId: Int!, items: [createOrderItemInput!]!, total: Int, address: String!): CreateOrderOutput!
+  takeOrder(id: Int!): TakeOrderOutput!
+  pickUpOrder(id: Int!, driverId: Int!): PickUpOrderOutput!
+  deliveredOrder(id: Int!): DeliveredOrderOutput!
+  cancelOrder(id: Int!): CancelOrderOutput!
 }
 
 input dishOption {
   name: String!
-  choices: [dishChoice!]
-  extra: Int
+  extra: Int! = 0
 }
 
-input dishChoice {
-  name: String!
-  extra: Int!
+input createOrderItemInput {
+  choices: [orderItemOption!]
+  dishId: Int!
 }

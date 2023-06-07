@@ -1,4 +1,9 @@
-import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
+import {
+    Field,
+    InputType,
+    ObjectType,
+    registerEnumType,
+} from '@nestjs/graphql';
 import {
     Entity,
     Column,
@@ -11,6 +16,7 @@ import { IsEmail, IsEnum, IsString } from 'class-validator';
 import * as bcrypt from 'bcrypt';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Restaurant } from './../../restaurants/entities/restaurant.entity';
+import { Order } from 'src/orders/entities/order.entity';
 
 export enum UserRole {
     Client = 'Client',
@@ -20,8 +26,9 @@ export enum UserRole {
 
 registerEnumType(UserRole, { name: 'UserRole' });
 
-@ObjectType()
 @Entity()
+@ObjectType()
+@InputType('user', { isAbstract: true })
 export class User extends CoreEntity {
     private originalPassword?: string;
 
@@ -47,6 +54,14 @@ export class User extends CoreEntity {
     @Field((type) => [Restaurant])
     @OneToMany((type) => Restaurant, (restaurant) => restaurant.owner)
     restaurants: Restaurant[];
+
+    @Field((type) => [Order])
+    @OneToMany((type) => Order, (order) => order.customer)
+    orders: Order[];
+
+    @Field((type) => [Order])
+    @OneToMany((type) => Order, (order) => order.driver)
+    rides: Order[];
 
     @AfterLoad()
     saveOriginPassword() {

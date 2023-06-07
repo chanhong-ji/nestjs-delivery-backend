@@ -19,5 +19,6 @@ import {
         DishesResolver,
         { provide: 'PER_PAGE', useValue: 5 },
     ],
+    exports: [RestaurantsService],
 })
 export class RestaurantsModule {}
