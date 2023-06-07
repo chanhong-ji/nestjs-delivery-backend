@@ -8,7 +8,8 @@ import {
     CategoriesResolver,
     DishesResolver,
     RestaurantsResolver,
-} from './restaurants.resolvers';
+} from './restaurants.resolver';
+import { ErrorOutputs } from 'src/common/errors';
 
 @Module({
     imports: [TypeOrmModule.forFeature([Restaurant, Category, Dish])],
@@ -18,6 +19,7 @@ import {
         CategoriesResolver,
         DishesResolver,
         { provide: 'PER_PAGE', useValue: 5 },
+        ErrorOutputs,
     ],
     exports: [RestaurantsService],
 })

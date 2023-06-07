@@ -16,26 +16,20 @@ import {
     DeliveredOrderOutput,
 } from './dtos/delivered-order.dto';
 import { CancelOrderInput, CancelOrderOutput } from './dtos/cancel-order.dto';
+import { ErrorOutputs } from 'src/common/errors';
 
 @Resolver((of) => Order)
 export class OrdersResolver {
-    DB_ERROR = 'DB error';
-
-    dbErrorOuput = {
-        ok: false,
-        error: this.DB_ERROR,
-    };
-
     constructor(
         private readonly service: OrdersService,
-        private readonly restaurantService: RestaurantsService,
         @Inject('PER_PAGE') private readonly PER_PAGE,
+        @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
     ) {}
 
-    restaurantValidation(id: number) {}
+    // restaurantValidation(id: number) {}
 
     orderValidation(order: Order) {
-        if (!order) return { ok: false, error: 'Order not found' };
+        if (!order) return this.errors.notFoundErrorOutput;
     }
 
     @Query((returns) => OrdersOutput)
@@ -58,7 +52,7 @@ export class OrdersResolver {
             };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -95,12 +89,12 @@ export class OrdersResolver {
                 authorized = true;
             }
 
-            if (!authorized) return { ok: false, error: 'Not authorized' };
+            if (!authorized) return this.errors.notAuthorizedError;
 
             return { ok: true, result };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -113,10 +107,10 @@ export class OrdersResolver {
         try {
             //Check restaurant
 
-            const restaurant = this.restaurantService.findById(
+            const restaurant = await this.service.findRestById(
                 args.restaurantId,
             );
-            if (!restaurant) return { ok: false, error: 'Not found' };
+            if (!restaurant) return this.errors.notFoundErrorOutput;
 
             // Check dish and option & calculate total price
 
@@ -125,7 +119,7 @@ export class OrdersResolver {
             for (const { dishId, choices } of args.items) {
                 const dish = await this.service.findDishById(dishId);
 
-                if (!dish) return { ok: false, error: 'Not found' };
+                if (!dish) return this.errors.notFoundErrorOutput;
 
                 total += dish.price;
 
@@ -134,8 +128,7 @@ export class OrdersResolver {
                         (option) => option.name === choice.name,
                     );
 
-                    if (!option)
-                        return { ok: false, error: 'Option not found' };
+                    if (!option) return this.errors.notFoundErrorOutput;
 
                     total += option.extra;
                 }
@@ -147,8 +140,7 @@ export class OrdersResolver {
             return { ok: true };
         } catch (error) {
             console.log(error);
-
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -167,19 +159,18 @@ export class OrdersResolver {
 
             // check owner validation
             if (order.restaurant.ownerId !== user.id)
-                return { ok: false, error: 'Not authorized' };
+                return this.errors.notAuthorizedError;
 
             // check if order is on pending
-            if (order.status !== OrderStatus.Pending) {
-                return { ok: false, error: 'Wrong access' };
-            }
+            if (order.status !== OrderStatus.Pending)
+                return this.errors.wrongAccessError;
 
             await this.service.pendingToCooking(order);
 
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return this.dbErrorOuput;
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -196,22 +187,21 @@ export class OrdersResolver {
             if (orderValidationError) return orderValidationError;
 
             if (order.restaurant.ownerId !== user.id)
-                return { ok: false, error: 'Not authorized' };
+                return this.errors.notAuthorizedError;
 
-            if (order.status !== OrderStatus.Cooking) {
-                return { ok: false, error: 'Wrong access' };
-            }
+            if (order.status !== OrderStatus.Cooking)
+                return this.errors.wrongAccessError;
 
             const driver = await this.service.findUserById(driverId);
             if (!driver || driver.role !== UserRole.Delivery)
-                return { ok: false, error: 'driver error' };
+                return this.errors.notFoundErrorOutput;
 
             await this.service.cookingToPickedUp(order, driverId);
 
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return this.dbErrorOuput;
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -228,18 +218,17 @@ export class OrdersResolver {
             if (orderValidationError) return orderValidationError;
 
             if (order.driverId !== user.id)
-                return { ok: false, error: 'Not authorized' };
+                return this.errors.notAuthorizedError;
 
-            if (order.status !== OrderStatus.PickedUp) {
-                return { ok: false, error: 'Wrong access' };
-            }
+            if (order.status !== OrderStatus.PickedUp)
+                return this.errors.wrongAccessError;
 
             await this.service.pickedUpToDelivered(order);
 
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return this.dbErrorOuput;
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -257,18 +246,18 @@ export class OrdersResolver {
 
             if (user.role === UserRole.Client) {
                 if (order.customerId !== user.id) {
-                    return { ok: false, error: 'Not authorized' };
+                    return this.errors.notAuthorizedError;
                 }
             }
 
             if (user.role === UserRole.Delivery) {
                 if (order.restaurant.ownerId !== user.id) {
-                    return { ok: false, error: 'Not authorized' };
+                    return this.errors.notAuthorizedError;
                 }
             }
 
             if (order.status !== OrderStatus.Pending) {
-                return { ok: false, error: 'Order is already accepted' };
+                return this.errors.wrongAccessError;
             }
 
             await this.service.cancelOrder(order);
@@ -276,7 +265,7 @@ export class OrdersResolver {
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return this.dbErrorOuput;
+            return this.errors.dbErrorOutput;
         }
     }
 }

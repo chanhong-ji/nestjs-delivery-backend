@@ -158,7 +158,7 @@ type DeleteRestaurantOutput {
 type RestaurantOutput {
   ok: Boolean!
   error: String
-  restaurant: Restaurant
+  result: Restaurant
 }
 
 type RestaurantsOutput {
@@ -255,7 +255,7 @@ type Query {
 type Mutation {
   createAccount(email: String!, password: String!, role: UserRole!): CreateAccountOutput!
   login(email: String!, password: String!): LoginOutPut!
-  editProfile(email: String, password: String, role: UserRole): EditProfileOutput!
+  editProfile(email: String, password: String): EditProfileOutput!
   verifyEmailwithCode(code: String!): VerifyCodeOutput!
   createRestaurant(name: String!, coverImage: String, address: String!, categoryId: Int!): CreateRestaurantOutput!
   editRestaurant(name: String, coverImage: String, address: String, categoryId: Int, restaurantId: Int!): EditRestaurantOutput!

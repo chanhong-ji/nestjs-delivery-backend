@@ -12,14 +12,15 @@ import { Public } from 'src/auth/decorators/public.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
 import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
 import { VerifyCodeInput, VerifyCodeOutput } from './dtos/verify-code.dto';
+import { Inject } from '@nestjs/common';
+import { ErrorOutputs } from 'src/common/errors';
 
 @Resolver((of) => User)
 export class UsersResolver {
-    DB_ERROR = 'DB error';
-
     constructor(
         private readonly service: UsersService,
         private authService: AuthService,
+        @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
     ) {}
 
     @Public()
@@ -30,13 +31,12 @@ export class UsersResolver {
         try {
             // Check if email is already taken
             const exist = await this.service.findByEmail(args.email);
-            if (exist) {
-                return { ok: false, error: 'Email already taken' };
-            }
+            if (exist) return this.errors.emailAlreadyTakenError;
+
             await this.service.create(args);
             return { ok: true };
         } catch (error) {
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -46,20 +46,16 @@ export class UsersResolver {
         try {
             // Check if user exists
             const user = await this.service.findByEmail(email);
-            if (!user) {
-                return { ok: false, error: 'User not found' };
-            }
+            if (!user) return this.errors.notFoundErrorOutput;
 
             // Check if password is right
             const passwordConfirm = await user.checkPassword(password);
-            if (!passwordConfirm) {
-                return { ok: false, error: 'Password wrong' };
-            } else {
-                const token = await this.authService.sign(user.id);
-                return { ok: true, token };
-            }
+            if (!passwordConfirm) return this.errors.passwordWrongError;
+
+            const token = await this.authService.sign(user.id);
+            return { ok: true, token };
         } catch (error) {
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -74,14 +70,11 @@ export class UsersResolver {
     ): Promise<UserProfileOutput> {
         try {
             const user = await this.service.findById(args.userId);
-
-            if (!user) {
-                return { ok: false, error: 'User not found' };
-            }
+            if (!user) return this.errors.notFoundErrorOutput;
 
             return { ok: true, user };
         } catch (error) {
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -94,7 +87,7 @@ export class UsersResolver {
             const updatedUser = await this.service.update(user, args);
             return { ok: true, user: updatedUser };
         } catch (error) {
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -107,7 +100,7 @@ export class UsersResolver {
             await this.service.verifyCode(args.code);
             return { ok: true };
         } catch (error) {
-            return { ok: false, error: 'Verification Fails' };
+            return this.errors.mailVerificationErrorOutput;
         }
     }
 }

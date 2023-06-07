@@ -43,33 +43,28 @@ import { CreateDishInput, CreateDishOutput } from './dtos/create-dish.dto';
 import { EditDishInput, EditDishOutput } from './dtos/edit-dish.dto';
 import { DeleteDishInput, DeleteDishOutput } from './dtos/delete-dish.dto';
 import { CoreOutput } from 'src/common/dtos/output.dto';
+import { ErrorOutputs } from 'src/common/errors';
 
 @Resolver()
 export class RestaurantsResolver {
-    RESTAURANT_NOT_FOUND_ERROR = 'Restaurant not found';
-    CATEGORY_NOT_FOUND_ERROR = 'Category not found';
-    NOT_AUTHORIZED_ERROR = 'Not authorized';
-    DB_ERROR = 'DB error';
-
     constructor(
         private readonly service: RestaurantsService,
         @Inject('PER_PAGE') private readonly PER_PAGE,
+        @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
     ) {}
 
     private async restaurantValidation(
         restaurant: Restaurant,
         user: User | null,
     ) {
-        if (!restaurant)
-            return { ok: false, error: this.RESTAURANT_NOT_FOUND_ERROR };
+        if (!restaurant) return this.errors.notFoundErrorOutput;
 
         if (user && restaurant.ownerId !== user.id)
-            return { ok: false, error: this.NOT_AUTHORIZED_ERROR };
+            return this.errors.notAuthorizedError;
     }
 
     private async categoryValidation(category: Category) {
-        if (!category)
-            return { ok: false, error: this.CATEGORY_NOT_FOUND_ERROR };
+        if (!category) return this.errors.notFoundErrorOutput;
     }
 
     @Query((returns) => RestaurantOutput)
@@ -85,10 +80,10 @@ export class RestaurantsResolver {
             );
             if (validationError) return validationError;
 
-            return { ok: true, restaurant };
+            return { ok: true, result: restaurant };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -118,7 +113,7 @@ export class RestaurantsResolver {
             };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -143,7 +138,7 @@ export class RestaurantsResolver {
             };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -163,10 +158,11 @@ export class RestaurantsResolver {
             if (validationError) return validationError;
 
             await this.service.update(restaurant, args);
+
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -189,7 +185,7 @@ export class RestaurantsResolver {
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -202,6 +198,7 @@ export class RestaurantsResolver {
                 query,
                 page,
             );
+
             return {
                 ok: true,
                 result: restaurants,
@@ -210,17 +207,17 @@ export class RestaurantsResolver {
             };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 }
 
 @Resolver((of) => Category)
 export class CategoriesResolver {
-    CATEGORY_EXISTS_ERROR = 'Category already exists';
-    DB_ERROR = 'DB error';
-
-    constructor(private readonly service: RestaurantsService) {}
+    constructor(
+        private readonly service: RestaurantsService,
+        @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
+    ) {}
 
     @ResolveField((returns) => Int)
     async restaurantCount(@Parent() category: Category): Promise<number> {
@@ -235,7 +232,7 @@ export class CategoriesResolver {
             return { ok: true, categories };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -246,28 +243,24 @@ export class CategoriesResolver {
     ): Promise<CreateCategoryOutput> {
         try {
             const category = await this.service.findCategoryByName(args.name);
-            if (category) {
-                return { ok: false, error: this.CATEGORY_EXISTS_ERROR };
-            }
+            if (category) return this.errors.categoryExistError;
 
             await this.service.createCategory(args.name);
+
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 }
 
 @Resolver((of) => Dish)
 export class DishesResolver {
-    CATEGORY_EXISTS_ERROR = 'Category already exists';
-    NOT_AUTHORIZED_ERROR = 'Not Authorized';
-    DB_ERROR = 'DB error';
-    RESTAURANT_NOT_FOUND = 'Restaurant not found';
-    DISH_NOT_FOUND = 'Dish not found';
-
-    constructor(private readonly service: RestaurantsService) {}
+    constructor(
+        private readonly service: RestaurantsService,
+        @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
+    ) {}
 
     @Mutation((returns) => CreateDishOutput)
     @Role(['Owner'])
@@ -291,7 +284,7 @@ export class DishesResolver {
             };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -314,7 +307,7 @@ export class DishesResolver {
             };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
@@ -332,21 +325,21 @@ export class DishesResolver {
             return { ok: true };
         } catch (error) {
             console.log(error);
-            return { ok: false, error: this.DB_ERROR };
+            return this.errors.dbErrorOutput;
         }
     }
 
     private async dishValidation(dish: Dish, user: User): Promise<CoreOutput> {
-        if (!dish) return { ok: false, error: this.DISH_NOT_FOUND };
+        if (!dish) return this.errors.notFoundErrorOutput;
 
         if (dish.restaurant.ownerId !== user.id)
-            return { ok: false, error: this.NOT_AUTHORIZED_ERROR };
+            return this.errors.notAuthorizedError;
     }
 
     private async restaurantValidation(restaurant: Restaurant, user: User) {
-        if (!restaurant) return { ok: false, error: this.RESTAURANT_NOT_FOUND };
+        if (!restaurant) return this.errors.notFoundErrorOutput;
 
         if (restaurant.ownerId !== user.id)
-            return { ok: false, error: this.NOT_AUTHORIZED_ERROR };
+            return this.errors.notFoundErrorOutput;
     }
 }

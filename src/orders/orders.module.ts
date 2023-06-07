@@ -9,6 +9,7 @@ import { Category } from 'src/restaurants/entities/category.entity';
 import { Dish } from 'src/restaurants/entities/dish.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { User } from 'src/users/entities/users.entity';
+import { ErrorOutputs } from 'src/common/errors';
 
 @Module({
     imports: [
@@ -20,12 +21,12 @@ import { User } from 'src/users/entities/users.entity';
             OrderItem,
             User,
         ]),
-        RestaurantsModule,
     ],
     providers: [
         OrdersService,
         OrdersResolver,
         { provide: 'PER_PAGE', useValue: 10 },
+        ErrorOutputs,
     ],
 })
 export class OrdersModule {}

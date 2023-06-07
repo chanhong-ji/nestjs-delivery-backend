@@ -118,6 +118,12 @@ export class OrdersService {
         });
     }
 
+    // Restaurant
+
+    async findRestById(id: number): Promise<Restaurant> {
+        return this.restRepo.findOne({ where: { id } });
+    }
+
     // Order Status
 
     async pendingToCooking(order: Order): Promise<void> {
