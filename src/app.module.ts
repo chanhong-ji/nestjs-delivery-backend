@@ -14,12 +14,6 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { OrdersModule } from './orders/orders.module';
-import { User } from './users/entities/users.entity';
-import { Verification } from './users/entities/verifications.entity';
-import { Restaurant } from './restaurants/entities/restaurant.entity';
-import { Category } from './restaurants/entities/category.entity';
-import { Dish } from './restaurants/entities/dish.entity';
-import { Order } from './orders/entities/order.entity';
 
 @Module({
     imports: [

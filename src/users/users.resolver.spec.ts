@@ -3,12 +3,14 @@ import { UsersResolver } from './users.resolver';
 import { UsersService } from './users.service';
 import { AuthService } from 'src/auth/auth.service';
 import { faker } from '@faker-js/faker';
-import { User } from './entities/users.entity';
+import { User, UserRole } from './entities/users.entity';
+import { ErrorOutputs } from 'src/common/errors';
 
 describe('Users - Resolver', () => {
     let resolver: UsersResolver;
     let service: Partial<Record<keyof UsersService, jest.Mock>>;
     let authService: Partial<Record<keyof AuthService, jest.Mock>>;
+    let errors: ErrorOutputs;
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -32,12 +34,14 @@ describe('Users - Resolver', () => {
                         verify: jest.fn(),
                     },
                 },
+                ErrorOutputs,
             ],
         }).compile();
 
         resolver = module.get<UsersResolver>(UsersResolver);
         service = module.get(UsersService);
         authService = module.get(AuthService);
+        errors = module.get(ErrorOutputs);
     });
 
     it('should be defined', () => {
@@ -45,150 +49,130 @@ describe('Users - Resolver', () => {
     });
 
     describe('createAccount', () => {
-        it('returns ok when user is successfully created', async () => {
-            const user = createFakeUser();
-            service.findByEmail.mockResolvedValue(null);
-
-            const result = await resolver.createAccount(user);
-
-            expect(result).toEqual({ ok: true });
-            expect(service.findByEmail).toHaveBeenCalledTimes(1);
-            expect(service.findByEmail).toHaveBeenCalledWith(user.email);
-            expect(service.create).toHaveBeenCalledTimes(1);
-            expect(service.create).toHaveBeenCalledWith({
+        let user: MockUser;
+        let inputData: Pick<MockUser, 'email' | 'password' | 'role'>;
+        beforeEach(() => {
+            user = createFakeUser();
+            inputData = {
                 email: user.email,
                 password: user.password,
                 role: user.role,
-            });
+            };
+        });
+        it('returns ok when user is successfully created', async () => {
+            service.findByEmail.mockResolvedValue(null);
+
+            const result = await resolver.createAccount(inputData);
+
+            expect(result).toEqual({ ok: true });
+            expect(service.findByEmail).toHaveBeenCalledTimes(1);
+            expect(service.findByEmail).toHaveBeenCalledWith(inputData.email);
+            expect(service.create).toHaveBeenCalledTimes(1);
+            expect(service.create).toHaveBeenCalledWith(inputData);
         });
 
         it('return false when email is already taken', async () => {
-            const user = createFakeUser();
             service.findByEmail.mockResolvedValue(user);
 
-            const result = await resolver.createAccount(user);
+            const result = await resolver.createAccount(inputData);
 
-            expect(result).toEqual({
-                ok: false,
-                error: 'Email already taken',
-            });
+            expect(result).toEqual(errors.emailAlreadyTakenError);
             expect(service.create).not.toHaveBeenCalled();
         });
 
-        it('throw internal error when error occurs in service', async () => {
-            const user = createFakeUser();
-            service.findByEmail.mockRejectedValue('');
+        it('return false when error occurs in service', async () => {
+            service.findByEmail.mockRejectedValue(new Error());
 
-            await expect(resolver.createAccount(user)).rejects.toThrow();
+            const result = await resolver.createAccount(inputData);
+
+            expect(result).toBe(errors.dbErrorOutput);
         });
     });
 
     describe('login', () => {
+        let user: MockUser;
+        let inputData: Pick<MockUser, 'email' | 'password'>;
+        beforeEach(() => {
+            user = createFakeUser();
+            inputData = { email: user.email, password: user.password };
+        });
         it('return ok & token when login success', async () => {
-            const user = createFakeUser();
             const token = faker.string.alpha(5);
             service.findByEmail.mockResolvedValue(user);
             user.checkPassword = jest.fn(() => Promise.resolve(true));
             authService.sign.mockResolvedValue(token);
 
-            const result = await resolver.login({
-                email: user.email,
-                password: user.password,
-            });
+            const result = await resolver.login(inputData);
 
             expect(result).toEqual({ ok: true, token });
 
             expect(service.findByEmail).toHaveBeenCalledTimes(1);
-            expect(service.findByEmail).toBeCalledWith(user.email);
+            expect(service.findByEmail).toBeCalledWith(inputData.email);
 
             expect(user.checkPassword).toHaveBeenCalledTimes(1);
-            expect(user.checkPassword).toBeCalledWith(user.password);
+            expect(user.checkPassword).toBeCalledWith(inputData.password);
 
             expect(authService.sign).toHaveBeenCalledTimes(1);
             expect(authService.sign).toBeCalledWith(user.id);
         });
 
         it('return false when email not found', async () => {
-            const user = createFakeUser();
             service.findByEmail.mockResolvedValue(null);
 
-            const result = await resolver.login({
-                email: user.email,
-                password: user.password,
-            });
+            const result = await resolver.login(inputData);
 
-            expect(result).toEqual({ ok: false, error: 'User not found' });
+            expect(result).toEqual(errors.notFoundErrorOutput);
             expect(service.findByEmail).toBeCalledWith(user.email);
         });
 
         it('return false when password confirm wrong', async () => {
-            const user = createFakeUser();
             service.findByEmail.mockResolvedValue(user);
             user.checkPassword = jest.fn(() => Promise.resolve(false));
 
-            const result = await resolver.login({
-                email: user.email,
-                password: user.password,
-            });
+            const result = await resolver.login(inputData);
 
-            expect(result).toEqual({ ok: false, error: 'Password wrong' });
+            expect(result).toEqual(errors.passwordWrongError);
         });
 
-        it('throw internal error when error occurs in service', async () => {
+        it('return false when error occurs in service', async () => {
             const user = createFakeUser();
             service.findByEmail.mockRejectedValue('');
 
-            await expect(resolver.login(user)).rejects.toThrow();
+            const result = await resolver.login(user);
+
+            expect(result).toBe(errors.dbErrorOutput);
         });
     });
 
     describe('editProfile', () => {
+        let user: MockUser;
+
+        beforeEach(() => {
+            user = createFakeUser();
+        });
+
         it('return ok, user when authorization success', async () => {
-            const user = createFakeUser();
             const updatedData = {
                 email: faker.internet.email(),
             };
-            const editProfileInput = {
-                userId: user.id,
-                ...updatedData,
-            };
             service.update.mockResolvedValue({ ...user, ...updatedData });
 
-            const result = await resolver.editProfile(editProfileInput, user);
+            const result = await resolver.editProfile(updatedData, user);
 
             expect(result).toEqual({
                 ok: true,
                 user: { ...user, ...updatedData },
             });
             expect(service.update).toHaveBeenCalledTimes(1);
-            expect(service.update).toHaveBeenCalledWith(editProfileInput);
+            expect(service.update).toHaveBeenCalledWith(user, updatedData);
         });
 
-        it('return false when user context not authorized', async () => {
-            const user = createFakeUser();
-            const editProfileInput = {
-                userId: faker.number.int(),
-            };
-
-            const result = await resolver.editProfile(editProfileInput, user);
-
-            expect(result).toEqual({
-                ok: false,
-                error: 'Not authorized',
-            });
-            expect(service.update).not.toHaveBeenCalled();
-        });
-
-        it('throw internal error when error occurs in service', async () => {
-            const user = createFakeUser();
-            const editProfileInput = {
-                userId: user.id,
-            };
+        it('return false when error occurs in service', async () => {
             service.update.mockRejectedValue(null);
 
-            await expect(
-                resolver.editProfile(editProfileInput, user),
-            ).rejects.toThrow();
+            const result = await resolver.editProfile({}, user);
+
+            expect(result).toBe(errors.dbErrorOutput);
         });
     });
 
@@ -227,13 +211,15 @@ describe('Users - Resolver', () => {
 
             const result = await resolver.userProfile(userProfileInput);
 
-            expect(result).toEqual({ ok: false, error: 'User not found' });
+            expect(result).toEqual(errors.notFoundErrorOutput);
         });
 
-        it('throw internal error when error occurs in service', async () => {
+        it('return false when error occurs in service', async () => {
             service.findById.mockRejectedValue('');
 
-            await expect(resolver.userProfile({ userId: 1 })).rejects.toThrow();
+            const result = await resolver.userProfile({ userId: 1 });
+
+            expect(result).toBe(errors.dbErrorOutput);
         });
     });
 
@@ -246,7 +232,9 @@ describe('Users - Resolver', () => {
             const result = await resolver.verifyEmailwithCode(verifyCodeInput);
 
             expect(result).toEqual({ ok: true });
-            expect(service.verifyCode).toHaveBeenCalledWith(verifyCodeInput);
+            expect(service.verifyCode).toHaveBeenCalledWith(
+                verifyCodeInput.code,
+            );
         });
 
         it('return false when error occurs in servie', async () => {
@@ -254,7 +242,7 @@ describe('Users - Resolver', () => {
 
             const result = await resolver.verifyEmailwithCode({ code: '' });
 
-            expect(result).toEqual({ ok: false, error: 'Verification Fails' });
+            expect(result).toEqual(errors.mailVerificationErrorOutput);
         });
     });
 });
@@ -263,14 +251,14 @@ const createFakeUser = (): MockUser => ({
     id: faker.number.int(),
     email: faker.internet.email(),
     password: faker.internet.password(),
-    role: 0,
+    role: UserRole.Client,
 });
 
 interface MockUser {
     id: number;
     email: string;
     password: string;
-    role: 0 | 1 | 2;
+    role: UserRole;
     checkPassword?: () => Promise<boolean>;
     hashPassword?: () => {};
 }
