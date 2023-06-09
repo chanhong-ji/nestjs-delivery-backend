@@ -340,6 +340,6 @@ export class DishesResolver {
         if (!restaurant) return this.errors.notFoundErrorOutput;
 
         if (restaurant.ownerId !== user.id)
-            return this.errors.notFoundErrorOutput;
+            return this.errors.notAuthorizedError;
     }
 }
