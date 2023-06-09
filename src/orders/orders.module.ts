@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RestaurantsModule } from 'src/restaurants/restaurants.module';
 import { OrdersService } from './orders.service';
 import { OrdersResolver } from './orders.resolver';
 import { Order } from './entities/order.entity';

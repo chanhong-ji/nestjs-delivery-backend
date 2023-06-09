@@ -11,7 +11,11 @@ import { CoreOutput } from 'src/common/dtos/output.dto';
 import { OrderItem } from '../entities/order-item.entity';
 
 @InputType('createOrderItemInput')
-class CreateOrderItemInput extends PickType(OrderItem, ['choices'], InputType) {
+export class CreateOrderItemInput extends PickType(
+    OrderItem,
+    ['choices'],
+    InputType,
+) {
     @Field((type) => Int)
     @IsNumber()
     dishId: number;

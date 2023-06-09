@@ -5,7 +5,6 @@ import { Role } from 'src/auth/decorators/roles.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
 import { Order, OrderStatus } from './entities/order.entity';
 import { User, UserRole } from 'src/users/entities/users.entity';
-import { RestaurantsService } from 'src/restaurants/restaurants.service';
 import { CreateOrderInput, CreateOrderOutput } from './dtos/create-order.dto';
 import { OrdersInput, OrdersOutput } from './dtos/orders.dto';
 import { OrderInput, OrderOutput } from './dtos/order.dto';
@@ -26,9 +25,7 @@ export class OrdersResolver {
         @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
     ) {}
 
-    // restaurantValidation(id: number) {}
-
-    orderValidation(order: Order) {
+    private orderValidation(order: Order) {
         if (!order) return this.errors.notFoundErrorOutput;
     }
 
@@ -192,9 +189,8 @@ export class OrdersResolver {
             if (order.status !== OrderStatus.Cooking)
                 return this.errors.wrongAccessError;
 
-            const driver = await this.service.findUserById(driverId);
-            if (!driver || driver.role !== UserRole.Delivery)
-                return this.errors.notFoundErrorOutput;
+            const driver = await this.service.findDriverById(driverId);
+            if (!driver) return this.errors.notFoundErrorOutput;
 
             await this.service.cookingToPickedUp(order, driverId);
 
@@ -250,7 +246,7 @@ export class OrdersResolver {
                 }
             }
 
-            if (user.role === UserRole.Delivery) {
+            if (user.role === UserRole.Owner) {
                 if (order.restaurant.ownerId !== user.id) {
                     return this.errors.notAuthorizedError;
                 }

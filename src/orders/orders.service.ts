@@ -148,7 +148,9 @@ export class OrdersService {
 
     // User
 
-    async findUserById(id: number): Promise<User> {
-        return this.userRepo.findOne({ where: { id } });
+    async findDriverById(id: number): Promise<User> {
+        return this.userRepo.findOne({
+            where: { id, role: UserRole.Delivery },
+        });
     }
 }
