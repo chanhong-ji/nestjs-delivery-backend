@@ -12,6 +12,7 @@ describe('Orders - Resolver', () => {
     let resolver: OrdersResolver;
     let service: Partial<Record<keyof OrdersService, jest.Mock>>;
     let errors: ErrorOutputs;
+    let perPage: number;
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -43,6 +44,7 @@ describe('Orders - Resolver', () => {
         resolver = module.get<OrdersResolver>(OrdersResolver);
         service = module.get(OrdersService);
         errors = module.get(ErrorOutputs);
+        perPage = module.get('PER_PAGE');
     });
 
     it('should be defined', () => {
@@ -421,8 +423,130 @@ describe('Orders - Resolver', () => {
         });
     });
 
-    it.todo('orders');
-    it.todo('order');
+    describe('order', () => {
+        let order: MockOrder;
+        let inputData: Pick<MockOrder, 'id'>;
+        let driver: User;
+
+        beforeEach(() => {
+            order = createFakeOrder(customer, restaurant);
+            driver = createFakeUser();
+            driver.role = UserRole.Delivery;
+            order.driverId = driver.id;
+            inputData = { id: order.id };
+        });
+
+        it('return true and result when user is the customer', async () => {
+            service.findByIdForValidation.mockResolvedValue(order);
+            service.findByIdForClient.mockResolvedValue(order);
+
+            const result = await resolver.order(inputData, customer);
+
+            expect(result).toEqual({ ok: true, result: order });
+            expect(service.findByIdForClient).toHaveBeenCalledTimes(1);
+            expect(service.findByIdForClient).toHaveBeenCalledWith(
+                inputData.id,
+            );
+            expect(service.findById).not.toHaveBeenCalled();
+            expect(service.findByIdForOwner).not.toHaveBeenCalled();
+        });
+
+        it('return true and result when user is the driver', async () => {
+            service.findByIdForValidation.mockResolvedValue(order);
+            service.findById.mockResolvedValue(order);
+
+            const result = await resolver.order(inputData, driver);
+
+            expect(result).toEqual({ ok: true, result: order });
+            expect(service.findById).toHaveBeenCalledWith(inputData.id);
+            expect(service.findById).toHaveBeenCalledTimes(1);
+            expect(service.findByIdForClient).not.toHaveBeenCalled();
+            expect(service.findByIdForOwner).not.toHaveBeenCalled();
+        });
+
+        it('return true and result when user is the owner', async () => {
+            service.findByIdForValidation.mockResolvedValue(order);
+            service.findByIdForOwner.mockResolvedValue(order);
+
+            const result = await resolver.order(inputData, owner);
+
+            expect(result).toEqual({ ok: true, result: order });
+            expect(service.findByIdForOwner).toHaveBeenCalledWith(inputData.id);
+            expect(service.findByIdForOwner).toHaveBeenCalledTimes(1);
+            expect(service.findById).not.toHaveBeenCalled();
+            expect(service.findByIdForClient).not.toHaveBeenCalled();
+        });
+
+        it('return false when order not found', async () => {
+            service.findByIdForValidation.mockResolvedValue(null);
+
+            const result = await resolver.order(inputData, customer);
+
+            expect(result).toEqual(errors.notFoundErrorOutput);
+            expect(service.findByIdForClient).not.toHaveBeenCalled();
+            expect(service.findById).not.toHaveBeenCalled();
+            expect(service.findByIdForOwner).not.toHaveBeenCalled();
+        });
+
+        it('return false when user is not authorized', async () => {
+            service.findByIdForValidation.mockResolvedValue(order);
+            customer.id = order.customerId + 1;
+
+            const result = await resolver.order(inputData, customer);
+
+            expect(result).toEqual(errors.notAuthorizedError);
+            expect(service.findByIdForClient).not.toHaveBeenCalled();
+            expect(service.findById).not.toHaveBeenCalled();
+            expect(service.findByIdForOwner).not.toHaveBeenCalled();
+        });
+
+        it('return false when error occurs in DB', async () => {
+            service.findByIdForValidation.mockRejectedValue(new Error());
+
+            const result = await resolver.order(inputData, customer);
+
+            expect(result).toEqual(errors.dbErrorOutput);
+        });
+    });
+
+    describe('orders', () => {
+        let order: MockOrder;
+        let inputData: Pick<MockOrder, 'status'> & { page: number };
+
+        beforeEach(() => {
+            order = createFakeOrder(customer, restaurant);
+            inputData = { status: null, page: faker.number.int() };
+        });
+
+        it('return true and [Order[], number]', async () => {
+            const count = faker.number.int();
+            const orders = [order];
+            service.findAllByStatus.mockResolvedValue([orders, count]);
+
+            const result = await resolver.orders(inputData, customer);
+
+            expect(result).toEqual({
+                ok: true,
+                result: orders,
+                totalItems: count,
+                totalPages: Math.ceil(count / perPage),
+            });
+            expect(service.findAllByStatus).toHaveBeenCalledTimes(1);
+            expect(service.findAllByStatus).toHaveBeenCalledWith(
+                customer,
+                inputData.page,
+                inputData.status,
+            );
+        });
+
+        it('return false when error occurs in DB', async () => {
+            service.findAllByStatus.mockRejectedValue(new Error());
+
+            const result = await resolver.orders(inputData, customer);
+
+            expect(result).toEqual(errors.dbErrorOutput);
+        });
+    });
 });
 
 type MockRestaurant = {
