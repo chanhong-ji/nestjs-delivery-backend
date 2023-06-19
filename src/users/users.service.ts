@@ -5,15 +5,13 @@ import { User } from './entities/users.entity';
 import { Verification } from './entities/verifications.entity';
 import { CreateAccountInput } from './dtos/create-account.dto';
 import { EditProfileInput } from './dtos/edit-profile.dto';
-import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User) private readonly repo: Repository<User>,
         @InjectRepository(Verification)
-        private readonly verificationService: Repository<Verification>,
-        private readonly mailService: MailService,
+        private readonly verificationRepo: Repository<Verification>,
     ) {}
 
     async findById(id: number): Promise<User> {
@@ -24,27 +22,31 @@ export class UsersService {
         return this.repo.findOne({ where: { email } });
     }
 
-    async create(data: CreateAccountInput): Promise<Boolean> {
-        const user = await this.repo.save(this.repo.create(data));
-
-        const verification = await this.verificationService.save(
-            this.verificationService.create({ user }),
-        );
-
-        await this.mailService.sendVerificationEmail(
-            data.email,
-            verification.code,
-        );
-
-        return true;
+    async create(data: CreateAccountInput): Promise<User> {
+        return this.repo.save(this.repo.create(data));
     }
 
     async update(user, data: EditProfileInput): Promise<User> {
         return this.repo.save({ ...user, ...data });
     }
 
+    // Verification
+
+    async createVerification(userId: number): Promise<Verification> {
+        return this.verificationRepo.save(
+            this.verificationRepo.create({ user: { id: userId } }),
+        );
+    }
+
+    async deleteVerification(userId: number): Promise<void> {
+        const veri = await this.verificationRepo.findOne({
+            where: { user: { id: userId } },
+        });
+        await this.verificationRepo.delete(veri.id);
+    }
+
     async verifyCode(code: string): Promise<void> {
-        const verification = await this.verificationService.findOne({
+        const verification = await this.verificationRepo.findOne({
             where: { code },
             relations: ['user'],
         });
@@ -53,6 +55,6 @@ export class UsersService {
 
         await this.repo.save(verification.user);
 
-        await this.verificationService.delete(verification.id);
+        await this.verificationRepo.delete(verification.id);
     }
 }

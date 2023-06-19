@@ -2,19 +2,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsersResolver } from './users.resolver';
 import { UsersService } from './users.service';
 import { AuthService } from 'src/auth/auth.service';
+import { MailService } from 'src/mail/mail.service';
 import { faker } from '@faker-js/faker';
-import { User, UserRole } from './entities/users.entity';
 import { ErrorOutputs } from 'src/common/errors';
+import { UserRole } from './entities/users.entity';
 
 describe('Users - Resolver', () => {
     let resolver: UsersResolver;
     let service: Partial<Record<keyof UsersService, jest.Mock>>;
     let authService: Partial<Record<keyof AuthService, jest.Mock>>;
+    let mailService: Partial<Record<keyof MailService, jest.Mock>>;
     let errors: ErrorOutputs;
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
-            imports: [User],
             providers: [
                 UsersResolver,
                 {
@@ -24,6 +25,8 @@ describe('Users - Resolver', () => {
                         findByEmail: jest.fn(),
                         create: jest.fn(),
                         update: jest.fn(),
+                        createVerification: jest.fn(),
+                        deleteVerification: jest.fn(),
                         verifyCode: jest.fn(),
                     },
                 },
@@ -34,6 +37,13 @@ describe('Users - Resolver', () => {
                         verify: jest.fn(),
                     },
                 },
+                {
+                    provide: MailService,
+                    useValue: {
+                        sendVerificationEmail: jest.fn(),
+                        sendEmail: jest.fn(),
+                    },
+                },
                 ErrorOutputs,
             ],
         }).compile();
@@ -41,6 +51,7 @@ describe('Users - Resolver', () => {
         resolver = module.get<UsersResolver>(UsersResolver);
         service = module.get(UsersService);
         authService = module.get(AuthService);
+        mailService = module.get(MailService);
         errors = module.get(ErrorOutputs);
     });
 
@@ -59,8 +70,13 @@ describe('Users - Resolver', () => {
                 role: user.role,
             };
         });
+
         it('returns ok when user is successfully created', async () => {
+            const userId = faker.number.int();
+            const code = faker.number.int();
             service.findByEmail.mockResolvedValue(null);
+            service.create.mockResolvedValue({ id: userId });
+            service.createVerification.mockResolvedValue({ code });
 
             const result = await resolver.createAccount(inputData);
 
@@ -69,6 +85,13 @@ describe('Users - Resolver', () => {
             expect(service.findByEmail).toHaveBeenCalledWith(inputData.email);
             expect(service.create).toHaveBeenCalledTimes(1);
             expect(service.create).toHaveBeenCalledWith(inputData);
+            expect(service.createVerification).toHaveBeenCalledTimes(1);
+            expect(service.createVerification).toHaveBeenCalledWith(userId);
+            expect(mailService.sendVerificationEmail).toHaveBeenCalledTimes(1);
+            expect(mailService.sendVerificationEmail).toHaveBeenCalledWith(
+                inputData.email,
+                code,
+            );
         });
 
         it('return false when email is already taken', async () => {
@@ -152,19 +175,47 @@ describe('Users - Resolver', () => {
         });
 
         it('return ok, user when authorization success', async () => {
-            const updatedData = {
+            const code = faker.number.int();
+            const inputData = {
                 email: faker.internet.email(),
             };
-            service.update.mockResolvedValue({ ...user, ...updatedData });
+            service.createVerification.mockResolvedValue({ code });
+            service.update.mockResolvedValue({ ...user, ...inputData });
 
-            const result = await resolver.editProfile(updatedData, user);
+            const result = await resolver.editProfile(inputData, user);
 
             expect(result).toEqual({
                 ok: true,
-                user: { ...user, ...updatedData },
+                user: { ...user, ...inputData },
             });
+            expect(service.findByEmail).toHaveBeenCalledTimes(1);
+            expect(service.findByEmail).toHaveBeenCalledWith(inputData.email);
+            expect(service.deleteVerification).toHaveBeenCalledTimes(1);
+            expect(service.deleteVerification).toHaveBeenCalledWith(user.id);
+            expect(mailService.sendVerificationEmail).toHaveBeenCalledTimes(1);
+            expect(mailService.sendVerificationEmail).toHaveBeenCalledWith(
+                inputData.email,
+                code,
+            );
             expect(service.update).toHaveBeenCalledTimes(1);
-            expect(service.update).toHaveBeenCalledWith(user, updatedData);
+            expect(service.update).toHaveBeenCalledWith(user, {
+                ...inputData,
+                verified: false,
+            });
+        });
+
+        it('return false when email is already taken', async () => {
+            const inputData = {
+                email: faker.internet.email(),
+            };
+            service.findByEmail.mockResolvedValue({});
+
+            const result = await resolver.editProfile(inputData, user);
+
+            expect(result).toEqual(errors.emailAlreadyTakenError);
+            expect(service.findByEmail).toHaveBeenCalledTimes(1);
+            expect(service.findByEmail).toHaveBeenCalledWith(inputData.email);
+            expect(service.update).not.toHaveBeenCalled();
         });
 
         it('return false when error occurs in service', async () => {

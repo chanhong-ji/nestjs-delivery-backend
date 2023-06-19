@@ -1,7 +1,10 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Inject } from '@nestjs/common';
 import { User } from './entities/users.entity';
 import { UsersService } from './users.service';
 import { AuthService } from 'src/auth/auth.service';
+import { MailService } from 'src/mail/mail.service';
+import { ErrorOutputs } from 'src/common/errors';
 import {
     CreateAccountInput,
     CreateAccountOutput,
@@ -12,14 +15,13 @@ import { Public } from 'src/auth/decorators/public.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
 import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
 import { VerifyCodeInput, VerifyCodeOutput } from './dtos/verify-code.dto';
-import { Inject } from '@nestjs/common';
-import { ErrorOutputs } from 'src/common/errors';
 
 @Resolver((of) => User)
 export class UsersResolver {
     constructor(
         private readonly service: UsersService,
         private authService: AuthService,
+        private mailService: MailService,
         @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
     ) {}
 
@@ -33,9 +35,18 @@ export class UsersResolver {
             const exist = await this.service.findByEmail(args.email);
             if (exist) return this.errors.emailAlreadyTakenError;
 
-            await this.service.create(args);
+            // Send mail verification
+            const user = await this.service.create(args);
+            const verification = await this.service.createVerification(user.id);
+
+            await this.mailService.sendVerificationEmail(
+                args.email,
+                verification.code,
+            );
+
             return { ok: true };
         } catch (error) {
+            console.log(error);
             return this.errors.dbErrorOutput;
         }
     }
@@ -55,6 +66,7 @@ export class UsersResolver {
             const token = await this.authService.sign(user.id);
             return { ok: true, token };
         } catch (error) {
+            console.log(error);
             return this.errors.dbErrorOutput;
         }
     }
@@ -74,6 +86,7 @@ export class UsersResolver {
 
             return { ok: true, user };
         } catch (error) {
+            console.log(error);
             return this.errors.dbErrorOutput;
         }
     }
@@ -84,9 +97,27 @@ export class UsersResolver {
         @AuthUser() user,
     ): Promise<EditProfileOutput> {
         try {
-            const updatedUser = await this.service.update(user, args);
+            if (args.email) {
+                const exist = await this.service.findByEmail(args.email);
+                if (exist) {
+                    return this.errors.emailAlreadyTakenError;
+                }
+
+                // Delete old verification and Create new one
+                await this.service.deleteVerification(user.id);
+                const veri = await this.service.createVerification(user.id);
+
+                this.mailService.sendVerificationEmail(args.email, veri.code);
+            }
+
+            const updatedUser = await this.service.update(user, {
+                ...args,
+                ...(args.email && { verified: false }),
+            });
+
             return { ok: true, user: updatedUser };
         } catch (error) {
+            console.log(error);
             return this.errors.dbErrorOutput;
         }
     }
@@ -100,6 +131,7 @@ export class UsersResolver {
             await this.service.verifyCode(args.code);
             return { ok: true };
         } catch (error) {
+            console.log(error);
             return this.errors.mailVerificationErrorOutput;
         }
     }
