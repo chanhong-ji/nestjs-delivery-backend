@@ -6,7 +6,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as Joi from 'joi';
 import { join } from 'path';
-import configuration from 'config/configuration';
+import configuration from './config/configuration';
 import { AuthMiddleware } from './auth/auth.middleware';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { OrdersModule } from './orders/orders.module';
+import { GraphQLFormattedError } from 'graphql';
 
 @Module({
     imports: [
@@ -24,12 +25,17 @@ import { OrdersModule } from './orders/orders.module';
             // autoSchemaFile: true,
             autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
             context: ({ req }) => ({ user: req['user'] }),
+            formatError(error: GraphQLFormattedError) {
+                console.log('---------------------------------');
+                console.log(error);
+                return error;
+            },
         }),
         ConfigModule.forRoot({
             isGlobal: true,
             load: [configuration],
             envFilePath:
-                process.env.NODE_ENV === 'dev' ? '.env.dev' : '.env.prod',
+                process.env.NODE_ENV === 'dev' ? '.env.dev' : '.env.test',
             ignoreEnvFile: process.env.NODE_ENV === 'prod',
             validationSchema: Joi.object({
                 NODE_ENV: Joi.string().valid('dev', 'prod', 'test').required(),
@@ -43,6 +49,12 @@ import { OrdersModule } from './orders/orders.module';
                 JWT_EXPIRESIN: Joi.number(),
                 MAILGUN_API_KEY: Joi.string().required(),
                 MAILGUN_DOMAIN_NAME: Joi.string().required(),
+                ...(process.env.NODE_ENV === 'test' && {
+                    TEST_EMAIL_1: Joi.string().required(),
+                }),
+                ...(process.env.NODE_ENV === 'test' && {
+                    TEST_EMAIL_2: Joi.string().required(),
+                }),
             }),
         }),
         TypeOrmModule.forRootAsync({
@@ -56,6 +68,7 @@ import { OrdersModule } from './orders/orders.module';
                 database: configService.get('database.name'),
                 autoLoadEntities: true,
                 synchronize: process.env.NODE_ENV !== 'prod',
+                dropSchema: process.env.NODE_ENV === 'test',
             }),
             inject: [ConfigService],
         }),

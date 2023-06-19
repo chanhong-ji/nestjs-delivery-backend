@@ -15,4 +15,8 @@ export default () => ({
         apiKey: process.env.MAILGUN_API_KEY,
         domainName: process.env.MAILGUN_DOMAIN_NAME,
     },
+    test: {
+        testEmail1: process.env.TEST_EMAIL_1,
+        testEmail2: process.env.TEST_EMAIL_2,
+    },
 });
