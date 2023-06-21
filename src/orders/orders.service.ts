@@ -24,17 +24,18 @@ export class OrdersService {
     ) {}
 
     // Order
-    async findById(id: number): Promise<Order | null> {
-        return this.repo.findOne({
-            where: { id },
-            loadRelationIds: true,
-        });
-    }
 
     async findByIdForValidation(id: number): Promise<Order | null> {
         return this.repo.findOne({
             where: { id },
             relations: ['restaurant'],
+        });
+    }
+
+    async findByIdForDelivery(id: number): Promise<Order | null> {
+        return this.repo.findOne({
+            where: { id },
+            loadRelationIds: true,
         });
     }
 
@@ -126,24 +127,16 @@ export class OrdersService {
 
     // Order Status
 
-    async pendingToCooking(order: Order): Promise<void> {
-        this.repo.save({ ...order, status: OrderStatus.Cooking });
-    }
-
-    async cookingToPickedUp(order: Order, driverId: number): Promise<void> {
-        this.repo.save({
-            ...order,
-            status: OrderStatus.PickedUp,
-            driver: { id: driverId },
-        });
-    }
-
-    async pickedUpToDelivered(order: Order): Promise<void> {
-        this.repo.save({ ...order, status: OrderStatus.Delivered });
+    async editOrder(order: Order, status: OrderStatus) {
+        await this.repo.update(order.id, { status });
     }
 
     async cancelOrder(order: Order): Promise<void> {
-        this.repo.delete(order.id);
+        await this.repo.delete(order.id);
+    }
+
+    async assignDriver(order: Order, driverId: number): Promise<void> {
+        await this.repo.update(order.id, { driver: { id: driverId } });
     }
 
     // User

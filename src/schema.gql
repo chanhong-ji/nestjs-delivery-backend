@@ -65,6 +65,7 @@ type Order {
 enum OrderStatus {
   Pending
   Cooking
+  Cooked
   PickedUp
   Delivered
 }
@@ -217,22 +218,17 @@ type OrderOutput {
   result: Order
 }
 
-type TakeOrderOutput {
-  ok: Boolean!
-  error: String
-}
-
-type PickUpOrderOutput {
-  ok: Boolean!
-  error: String
-}
-
-type DeliveredOrderOutput {
+type EditOrderForOwnerOutput {
   ok: Boolean!
   error: String
 }
 
 type CancelOrderOutput {
+  ok: Boolean!
+  error: String
+}
+
+type EditOrderForDeliveryOutput {
   ok: Boolean!
   error: String
 }
@@ -265,10 +261,9 @@ type Mutation {
   editDish(name: String, price: Int, photo: String, description: String, dishOptions: [dishOption!], id: Int!): EditDishOutput!
   deleteDish(id: Int!): DeleteDishOutput!
   createOrder(restaurantId: Int!, items: [createOrderItemInput!]!, total: Int, address: String!): CreateOrderOutput!
-  takeOrder(id: Int!): TakeOrderOutput!
-  pickUpOrder(id: Int!, driverId: Int!): PickUpOrderOutput!
-  deliveredOrder(id: Int!): DeliveredOrderOutput!
   cancelOrder(id: Int!): CancelOrderOutput!
+  EditOrderForOwner(id: Int!, status: OrderStatusForOwner!): EditOrderForOwnerOutput!
+  EditOrderForDelivery(id: Int!, status: OrderStatusForDelivery): EditOrderForDeliveryOutput!
 }
 
 input dishOption {
@@ -279,4 +274,14 @@ input dishOption {
 input createOrderItemInput {
   choices: [orderItemOption!]
   dishId: Int!
+}
+
+enum OrderStatusForOwner {
+  Cooking
+  Cooked
+}
+
+enum OrderStatusForDelivery {
+  PickedUp
+  Delivered
 }

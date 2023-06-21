@@ -1,5 +1,6 @@
 import { Inject } from '@nestjs/common';
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import { PubSub } from 'graphql-subscriptions';
 import { OrdersService } from './orders.service';
 import { Role } from 'src/auth/decorators/roles.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
@@ -8,14 +9,19 @@ import { User, UserRole } from 'src/users/entities/users.entity';
 import { CreateOrderInput, CreateOrderOutput } from './dtos/create-order.dto';
 import { OrdersInput, OrdersOutput } from './dtos/orders.dto';
 import { OrderInput, OrderOutput } from './dtos/order.dto';
-import { TakeOrderInput, TakeOrderOutput } from './dtos/take-order.dto';
-import { PickUpOrderInput, PickUpOrderOutput } from './dtos/pickup-order.dto';
 import {
-    DeliveredOrderInput,
-    DeliveredOrderOutput,
-} from './dtos/delivered-order.dto';
+    EditOrderForOwnerInput,
+    EditOrderForOwnerOutput,
+    OrderStatusForOwner,
+} from './dtos/edit-order-for-owner';
 import { CancelOrderInput, CancelOrderOutput } from './dtos/cancel-order.dto';
 import { ErrorOutputs } from 'src/common/errors';
+import { PUB_SUB } from 'src/common/common.constants';
+import {
+    EditOrderForDeliveryInput,
+    EditOrderForDeliveryOutput,
+    OrderStatusForDelivery,
+} from './dtos/edit-order-for-delivery';
 
 @Resolver((of) => Order)
 export class OrdersResolver {
@@ -23,6 +29,7 @@ export class OrdersResolver {
         private readonly service: OrdersService,
         @Inject('PER_PAGE') private readonly PER_PAGE,
         @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
+        @Inject(PUB_SUB) private readonly pubSub: PubSub,
     ) {}
 
     private orderValidation(order: Order) {
@@ -76,7 +83,7 @@ export class OrdersResolver {
                 user.role === UserRole.Delivery &&
                 order.driverId === user.id
             ) {
-                result = await this.service.findById(id);
+                result = await this.service.findByIdForDelivery(id);
                 authorized = true;
             } else if (
                 user.role === UserRole.Owner &&
@@ -120,6 +127,8 @@ export class OrdersResolver {
 
                 total += dish.price;
 
+                if (!choices) continue;
+
                 for (const choice of choices) {
                     const option = dish.dishOptions.find(
                         (option) => option.name === choice.name,
@@ -133,93 +142,6 @@ export class OrdersResolver {
             args['total'] = total;
 
             await this.service.create(user, args);
-
-            return { ok: true };
-        } catch (error) {
-            console.log(error);
-            return this.errors.dbErrorOutput;
-        }
-    }
-
-    @Mutation((returns) => TakeOrderOutput)
-    @Role(['Owner'])
-    async takeOrder(
-        @Args() { id }: TakeOrderInput,
-        @AuthUser() user: User,
-    ): Promise<TakeOrderOutput> {
-        try {
-            const order = await this.service.findByIdForValidation(id);
-
-            // Check if order exists
-            const orderValidationError = this.orderValidation(order);
-            if (orderValidationError) return orderValidationError;
-
-            // check owner validation
-            if (order.restaurant.ownerId !== user.id)
-                return this.errors.notAuthorizedError;
-
-            // check if order is on pending
-            if (order.status !== OrderStatus.Pending)
-                return this.errors.wrongAccessError;
-
-            await this.service.pendingToCooking(order);
-
-            return { ok: true };
-        } catch (error) {
-            console.log(error);
-            return this.errors.dbErrorOutput;
-        }
-    }
-
-    @Mutation((returns) => PickUpOrderOutput)
-    @Role(['Owner'])
-    async pickUpOrder(
-        @Args() { id, driverId }: PickUpOrderInput,
-        @AuthUser() user: User,
-    ): Promise<PickUpOrderOutput> {
-        try {
-            const order = await this.service.findByIdForValidation(id);
-
-            const orderValidationError = this.orderValidation(order);
-            if (orderValidationError) return orderValidationError;
-
-            if (order.restaurant.ownerId !== user.id)
-                return this.errors.notAuthorizedError;
-
-            if (order.status !== OrderStatus.Cooking)
-                return this.errors.wrongAccessError;
-
-            const driver = await this.service.findDriverById(driverId);
-            if (!driver) return this.errors.notFoundErrorOutput;
-
-            await this.service.cookingToPickedUp(order, driverId);
-
-            return { ok: true };
-        } catch (error) {
-            console.log(error);
-            return this.errors.dbErrorOutput;
-        }
-    }
-
-    @Mutation((returns) => DeliveredOrderOutput)
-    @Role(['Delivery'])
-    async deliveredOrder(
-        @Args() { id }: DeliveredOrderInput,
-        @AuthUser() user: User,
-    ): Promise<DeliveredOrderOutput> {
-        try {
-            const order = await this.service.findByIdForValidation(id);
-
-            const orderValidationError = this.orderValidation(order);
-            if (orderValidationError) return orderValidationError;
-
-            if (order.driverId !== user.id)
-                return this.errors.notAuthorizedError;
-
-            if (order.status !== OrderStatus.PickedUp)
-                return this.errors.wrongAccessError;
-
-            await this.service.pickedUpToDelivered(order);
 
             return { ok: true };
         } catch (error) {
@@ -257,6 +179,93 @@ export class OrdersResolver {
             }
 
             await this.service.cancelOrder(order);
+
+            return { ok: true };
+        } catch (error) {
+            console.log(error);
+            return this.errors.dbErrorOutput;
+        }
+    }
+
+    @Mutation((returns) => EditOrderForOwnerOutput)
+    @Role(['Owner'])
+    async EditOrderForOwner(
+        @Args() { id, status }: EditOrderForOwnerInput,
+        @AuthUser() user: User,
+    ): Promise<EditOrderForOwnerOutput> {
+        try {
+            const order = await this.service.findByIdForValidation(id);
+
+            // Check if order exists
+            const orderValidationError = this.orderValidation(order);
+            if (orderValidationError) return orderValidationError;
+
+            // check owner validation
+            if (order.restaurant.ownerId !== user.id)
+                return this.errors.notAuthorizedError;
+
+            // Pending => Cooking
+            if (status === OrderStatusForOwner.Cooking) {
+                // check if order is on pending
+                if (order.status !== OrderStatus.Pending)
+                    return this.errors.wrongAccessError;
+
+                await this.service.editOrder(order, OrderStatus.Cooking);
+            }
+            // Cooking => Cooked
+            else if (status === OrderStatusForOwner.Cooked) {
+                if (order.status !== OrderStatus.Cooking)
+                    return this.errors.wrongAccessError;
+
+                await this.service.editOrder(order, OrderStatus.Cooked);
+            }
+            return { ok: true };
+        } catch (error) {
+            console.log(error);
+            return this.errors.dbErrorOutput;
+        }
+    }
+
+    @Mutation((returns) => EditOrderForDeliveryOutput)
+    @Role(['Delivery'])
+    async EditOrderForDelivery(
+        @Args() { id, status }: EditOrderForDeliveryInput,
+        @AuthUser() user: User,
+    ): Promise<EditOrderForDeliveryOutput> {
+        try {
+            const order = await this.service.findByIdForValidation(id);
+
+            const orderValidationError = this.orderValidation(order);
+            if (orderValidationError) return orderValidationError;
+
+            // Take Order
+            if (!status) {
+                if (order.driverId) return this.errors.wrongAccessError;
+
+                if (order.status === OrderStatus.Pending)
+                    return this.errors.wrongAccessError;
+
+                await this.service.assignDriver(order, user.id);
+            }
+            // Pick up Order
+            else if (status === OrderStatusForDelivery.PickedUp) {
+                if (order.driverId !== user.id)
+                    return this.errors.notAuthorizedError;
+
+                if (order.status !== OrderStatus.Cooked)
+                    return this.errors.wrongAccessError;
+
+                await this.service.editOrder(order, OrderStatus.PickedUp);
+            }
+            // Delivered Order
+            else if (status === OrderStatusForDelivery.Delivered) {
+                if (order.driverId !== user.id)
+                    return this.errors.notAuthorizedError;
+
+                if (order.status !== OrderStatus.PickedUp)
+                    return this.errors.wrongAccessError;
+                await this.service.editOrder(order, OrderStatus.Delivered);
+            }
 
             return { ok: true };
         } catch (error) {
