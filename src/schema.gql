@@ -53,7 +53,7 @@ type Order {
   customer: User
   customerId: Int!
   driver: User
-  driverId: Int!
+  driverId: Int
   restaurant: Restaurant
   restaurantId: Int!
   items: [OrderItem!]!
@@ -68,6 +68,7 @@ enum OrderStatus {
   Cooked
   PickedUp
   Delivered
+  Canceled
 }
 
 type Restaurant {
@@ -262,8 +263,8 @@ type Mutation {
   deleteDish(id: Int!): DeleteDishOutput!
   createOrder(restaurantId: Int!, items: [createOrderItemInput!]!, total: Int, address: String!): CreateOrderOutput!
   cancelOrder(id: Int!): CancelOrderOutput!
-  EditOrderForOwner(id: Int!, status: OrderStatusForOwner!): EditOrderForOwnerOutput!
-  EditOrderForDelivery(id: Int!, status: OrderStatusForDelivery): EditOrderForDeliveryOutput!
+  editOrderForOwner(id: Int!, status: OrderStatusForOwner!): EditOrderForOwnerOutput!
+  editOrderForDelivery(id: Int!, status: OrderStatusForDelivery): EditOrderForDeliveryOutput!
 }
 
 input dishOption {
@@ -284,4 +285,10 @@ enum OrderStatusForOwner {
 enum OrderStatusForDelivery {
   PickedUp
   Delivered
+}
+
+type Subscription {
+  pendingOrders: Order!
+  cookedOrders: Order!
+  orderUpdates(id: Int!): Order!
 }

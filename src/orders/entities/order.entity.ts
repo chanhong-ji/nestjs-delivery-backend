@@ -25,6 +25,7 @@ export enum OrderStatus {
     Cooked = 'Cooked',
     PickedUp = 'PickedUp',
     Delivered = 'Delivered',
+    Canceled = 'Canceled',
 }
 
 registerEnumType(OrderStatus, { name: 'OrderStatus' });
@@ -52,9 +53,9 @@ export class Order extends CoreEntity {
     driver?: User;
 
     @RelationId((order: Order) => order.driver)
-    @Field((type) => Int)
+    @Field((type) => Int, { nullable: true })
     @IsNumber()
-    driverId: number;
+    driverId?: number;
 
     @Field((type) => Restaurant, { nullable: true })
     @ManyToOne((type) => Restaurant, (restaurant) => restaurant.orders, {

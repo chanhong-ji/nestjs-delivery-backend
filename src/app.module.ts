@@ -1,20 +1,20 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { GraphQLFormattedError } from 'graphql';
+import { Context } from 'graphql-ws';
 import * as Joi from 'joi';
 import { join } from 'path';
 import configuration from './config/configuration';
-import { AuthMiddleware } from './auth/auth.middleware';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { OrdersModule } from './orders/orders.module';
-import { GraphQLFormattedError } from 'graphql';
 
 @Module({
     imports: [
@@ -24,10 +24,26 @@ import { GraphQLFormattedError } from 'graphql';
             plugins: [ApolloServerPluginLandingPageLocalDefault()],
             // autoSchemaFile: true,
             autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-            context: ({ req }) => ({ user: req['user'] }),
+            context: ({ req, extra }) => {
+                return {
+                    authorization: req
+                        ? req.headers.authorization
+                        : extra.authorization,
+                };
+            },
+            subscriptions: {
+                'graphql-ws': {
+                    onConnect: (
+                        context: Context<any, { authorization: any }>,
+                    ) => {
+                        const { connectionParams, extra } = context;
+                        extra.authorization = connectionParams.Authorization;
+                    },
+                },
+            },
             formatError(error: GraphQLFormattedError) {
-                console.log('---------------------------------');
-                console.log(error);
+                // console.log('---------------------------------graqphl error');
+                // console.log(error);
                 return error;
             },
         }),
@@ -80,8 +96,4 @@ import { GraphQLFormattedError } from 'graphql';
         OrdersModule,
     ],
 })
-export class AppModule implements NestModule {
-    configure(consumer: MiddlewareConsumer) {
-        consumer.apply(AuthMiddleware).forRoutes('/graphql');
-    }
-}
+export class AppModule {}

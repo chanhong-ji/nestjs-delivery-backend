@@ -18,45 +18,48 @@ export class OrdersService {
         private readonly restRepo: Repository<Restaurant>,
         @InjectRepository(OrderItem)
         private readonly itemRepo: Repository<OrderItem>,
-        @InjectRepository(User)
-        private readonly userRepo: Repository<User>,
         @Inject('PER_PAGE') private readonly PER_PAGE,
     ) {}
 
     // Order
 
-    async findByIdForValidation(id: number): Promise<Order | null> {
-        return this.repo.findOne({
-            where: { id },
-            relations: ['restaurant'],
-        });
-    }
-
-    async findByIdForDelivery(id: number): Promise<Order | null> {
-        return this.repo.findOne({
-            where: { id },
-            loadRelationIds: true,
-        });
-    }
-
-    async findByIdForOwner(id: number): Promise<Order | null> {
+    async findById(id: number): Promise<Order | null> {
         return this.repo.findOne({
             where: { id },
             relations: {
+                restaurant: true,
+            },
+        });
+    }
+
+    async findByIdWithDetail(id: number): Promise<Order | null> {
+        return this.repo.findOne({
+            where: { id },
+            relations: {
+                restaurant: true,
+                customer: true,
                 driver: true,
                 items: {
                     dish: true,
                 },
             },
-        });
-    }
-
-    async findByIdForClient(id: number): Promise<Order | null> {
-        return this.repo.findOne({
-            where: { id },
-            relations: {
+            select: {
+                driver: {
+                    id: true,
+                    email: true,
+                },
+                customer: {
+                    id: true,
+                    email: true,
+                },
                 items: {
-                    dish: true,
+                    id: true,
+                    choices: true,
+                    dish: {
+                        id: true,
+                        name: true,
+                        price: true,
+                    },
                 },
             },
         });
@@ -88,7 +91,7 @@ export class OrdersService {
         });
     }
 
-    async create(user: User, data: CreateOrderInput): Promise<void> {
+    async create(user: User, data: CreateOrderInput): Promise<Order> {
         const orderItems: OrderItem[] = [];
         for (const item of data.items) {
             const orderItem = await this.itemRepo.save(
@@ -100,7 +103,7 @@ export class OrdersService {
             orderItems.push(orderItem);
         }
 
-        await this.repo.save(
+        return this.repo.save(
             this.repo.create({
                 restaurant: { id: data.restaurantId },
                 customer: { id: user.id },
@@ -128,7 +131,7 @@ export class OrdersService {
     // Order Status
 
     async editOrder(order: Order, status: OrderStatus) {
-        await this.repo.update(order.id, { status });
+        return this.repo.update(order.id, { status });
     }
 
     async cancelOrder(order: Order): Promise<void> {
@@ -137,13 +140,5 @@ export class OrdersService {
 
     async assignDriver(order: Order, driverId: number): Promise<void> {
         await this.repo.update(order.id, { driver: { id: driverId } });
-    }
-
-    // User
-
-    async findDriverById(id: number): Promise<User> {
-        return this.userRepo.findOne({
-            where: { id, role: UserRole.Delivery },
-        });
     }
 }

@@ -4,10 +4,16 @@ import { GqlExecutionContext } from '@nestjs/graphql';
 import { User } from 'src/users/entities/users.entity';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 import { RolesType } from './decorators/roles.decorator';
+import { UsersService } from 'src/users/users.service';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-    constructor(private readonly reflector: Reflector) {}
+    constructor(
+        private readonly reflector: Reflector,
+        private readonly userService: UsersService,
+        private readonly authService: AuthService,
+    ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const isPublic = this.reflector.getAllAndOverride<boolean>(
@@ -19,7 +25,15 @@ export class AuthGuard implements CanActivate {
         }
 
         const gqlContext = GqlExecutionContext.create(context).getContext();
-        const user: User | undefined = gqlContext['user'];
+        const token = this.extractTokenFromHeader(gqlContext.authorization);
+
+        if (!token) return false;
+
+        let user: User;
+        try {
+            const payload = await this.authService.verify(token);
+            user = await this.userService.findById(payload.userId);
+        } catch (error) {}
 
         if (!user) return false;
 
@@ -32,6 +46,11 @@ export class AuthGuard implements CanActivate {
             return false;
         }
 
+        gqlContext['user'] = user;
         return true;
+    }
+    private extractTokenFromHeader(authorization): string | undefined {
+        const [type, token] = authorization?.split(' ') ?? [];
+        return type === 'Bearer' ? token : undefined;
     }
 }

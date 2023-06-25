@@ -22,6 +22,11 @@ import {
     EditOrderForDeliveryOutput,
     OrderStatusForDelivery,
 } from './dtos/edit-order-for-delivery';
+import { OrderUpdateInput } from './dtos/order-update.dto';
+
+const NEW_PENDING_ORDERS = 'NEW_PENDING_ORDERS';
+const NEW_COOKED_ORDERS = 'NEW_COOKED_ORDERS';
+const ORDER_UPDATES = 'ORDER_UPDATES';
 
 @Resolver((of) => Order)
 export class OrdersResolver {
@@ -67,35 +72,23 @@ export class OrdersResolver {
     ): Promise<OrderOutput> {
         try {
             // Check if order exists
-            const order = await this.service.findByIdForValidation(id);
+            const order = await this.service.findByIdWithDetail(id);
 
             const validationError = this.orderValidation(order);
             if (validationError) return validationError;
 
-            // Get result by user role
-            let result;
-            let authorized = false;
-
-            if (user.role === UserRole.Client && order.customerId === user.id) {
-                result = await this.service.findByIdForClient(id);
-                authorized = true;
-            } else if (
-                user.role === UserRole.Delivery &&
-                order.driverId === user.id
+            if (
+                (user.role === UserRole.Client &&
+                    order.customerId === user.id) ||
+                (user.role === UserRole.Delivery &&
+                    order.driverId === user.id) ||
+                (user.role === UserRole.Owner &&
+                    order.restaurant.ownerId === user.id)
             ) {
-                result = await this.service.findByIdForDelivery(id);
-                authorized = true;
-            } else if (
-                user.role === UserRole.Owner &&
-                order.restaurant.ownerId === user.id
-            ) {
-                result = await this.service.findByIdForOwner(id);
-                authorized = true;
+                return { ok: true, result: order };
+            } else {
+                return this.errors.notAuthorizedError;
             }
-
-            if (!authorized) return this.errors.notAuthorizedError;
-
-            return { ok: true, result };
         } catch (error) {
             console.log(error);
             return this.errors.dbErrorOutput;
@@ -141,7 +134,14 @@ export class OrdersResolver {
             }
             args['total'] = total;
 
-            await this.service.create(user, args);
+            const { id } = await this.service.create(user, args);
+
+            // Data for subscription for owner of the restaurant
+            const order = await this.service.findByIdWithDetail(id);
+            await this.pubSub.publish(NEW_PENDING_ORDERS, {
+                order,
+                ownerId: restaurant.ownerId,
+            });
 
             return { ok: true };
         } catch (error) {
@@ -157,7 +157,7 @@ export class OrdersResolver {
         @AuthUser() user: User,
     ): Promise<CancelOrderOutput> {
         try {
-            const order = await this.service.findByIdForValidation(id);
+            const order = await this.service.findById(id);
 
             const orderValidationError = this.orderValidation(order);
             if (orderValidationError) return orderValidationError;
@@ -178,7 +178,12 @@ export class OrdersResolver {
                 return this.errors.wrongAccessError;
             }
 
-            await this.service.cancelOrder(order);
+            this.pubSub.publish(ORDER_UPDATES, {
+                order: { ...order, status: OrderStatus.Canceled },
+                ownerId: order.restaurant.ownerId,
+            });
+
+            await this.service.editOrder(order, OrderStatus.Canceled);
 
             return { ok: true };
         } catch (error) {
@@ -189,12 +194,12 @@ export class OrdersResolver {
 
     @Mutation((returns) => EditOrderForOwnerOutput)
     @Role(['Owner'])
-    async EditOrderForOwner(
+    async editOrderForOwner(
         @Args() { id, status }: EditOrderForOwnerInput,
         @AuthUser() user: User,
     ): Promise<EditOrderForOwnerOutput> {
         try {
-            const order = await this.service.findByIdForValidation(id);
+            const order = await this.service.findById(id);
 
             // Check if order exists
             const orderValidationError = this.orderValidation(order);
@@ -211,6 +216,11 @@ export class OrdersResolver {
                     return this.errors.wrongAccessError;
 
                 await this.service.editOrder(order, OrderStatus.Cooking);
+
+                this.pubSub.publish(ORDER_UPDATES, {
+                    order: { ...order, status },
+                    ownerId: order.restaurant.ownerId,
+                });
             }
             // Cooking => Cooked
             else if (status === OrderStatusForOwner.Cooked) {
@@ -218,7 +228,15 @@ export class OrdersResolver {
                     return this.errors.wrongAccessError;
 
                 await this.service.editOrder(order, OrderStatus.Cooked);
+
+                const orderWithDetail = await this.service.findByIdWithDetail(
+                    order.id,
+                );
+                await this.pubSub.publish(NEW_COOKED_ORDERS, {
+                    order: orderWithDetail,
+                });
             }
+
             return { ok: true };
         } catch (error) {
             console.log(error);
@@ -228,12 +246,12 @@ export class OrdersResolver {
 
     @Mutation((returns) => EditOrderForDeliveryOutput)
     @Role(['Delivery'])
-    async EditOrderForDelivery(
+    async editOrderForDelivery(
         @Args() { id, status }: EditOrderForDeliveryInput,
         @AuthUser() user: User,
     ): Promise<EditOrderForDeliveryOutput> {
         try {
-            const order = await this.service.findByIdForValidation(id);
+            const order = await this.service.findById(id);
 
             const orderValidationError = this.orderValidation(order);
             if (orderValidationError) return orderValidationError;
@@ -242,12 +260,15 @@ export class OrdersResolver {
             if (!status) {
                 if (order.driverId) return this.errors.wrongAccessError;
 
-                if (order.status === OrderStatus.Pending)
+                if (
+                    order.status === OrderStatus.Pending ||
+                    order.status === OrderStatus.Canceled
+                )
                     return this.errors.wrongAccessError;
 
                 await this.service.assignDriver(order, user.id);
             }
-            // Pick up Order
+            // Cooked => PickedUp
             else if (status === OrderStatusForDelivery.PickedUp) {
                 if (order.driverId !== user.id)
                     return this.errors.notAuthorizedError;
@@ -257,7 +278,7 @@ export class OrdersResolver {
 
                 await this.service.editOrder(order, OrderStatus.PickedUp);
             }
-            // Delivered Order
+            // PickedUp => Delivered
             else if (status === OrderStatusForDelivery.Delivered) {
                 if (order.driverId !== user.id)
                     return this.errors.notAuthorizedError;
@@ -267,10 +288,67 @@ export class OrdersResolver {
                 await this.service.editOrder(order, OrderStatus.Delivered);
             }
 
+            this.pubSub.publish(ORDER_UPDATES, {
+                order: { ...order, status },
+                ownerId: order.restaurant.ownerId,
+            });
+
             return { ok: true };
         } catch (error) {
             console.log(error);
             return this.errors.dbErrorOutput;
         }
+    }
+
+    // Subscription
+
+    // subscription for owner (new pending orders)
+    @Role(['Owner'])
+    @Subscription((returns) => Order, {
+        filter: (
+            { ownerId }: { ownerId: number },
+            _,
+            { user }: { user: User },
+        ) => ownerId === user.id,
+        resolve: ({ order }) => order,
+    })
+    pendingOrders() {
+        return this.pubSub.asyncIterator(NEW_PENDING_ORDERS);
+    }
+
+    // subscription for delivery (new cooked orders)
+    @Role(['Delivery'])
+    @Subscription((returns) => Order, {
+        filter: ({ order }: { order: Order }, _, { user }: { user: User }) =>
+            order.driverId === user.id,
+        resolve: ({ order }) => order,
+    })
+    cookedOrders() {
+        return this.pubSub.asyncIterator(NEW_COOKED_ORDERS);
+    }
+
+    // subscription for all (updates of orders)
+    @Role(['Client', 'Owner'])
+    @Subscription((returns) => Order, {
+        filter: (
+            { order, ownerId }: { order: Order; ownerId: number },
+            { id }: { id: number },
+            { user }: { user: User },
+        ) => {
+            if (order.id !== id) return false;
+            if (
+                (user.role === UserRole.Client &&
+                    order.customerId === user.id) ||
+                (user.role === UserRole.Owner && ownerId === user.id) ||
+                (user.role === UserRole.Delivery && order.driverId === user.id)
+            )
+                return true;
+
+            return false;
+        },
+        resolve: ({ order }) => order,
+    })
+    orderUpdates(@Args() orderUpdateInput: OrderUpdateInput) {
+        return this.pubSub.asyncIterator(ORDER_UPDATES);
     }
 }
