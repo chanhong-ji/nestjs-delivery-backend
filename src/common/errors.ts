@@ -1,16 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { CoreOutput } from './dtos/output.dto';
+import { InputType } from '@nestjs/graphql';
 
+@InputType()
 @Injectable()
 export class ErrorOutputs {
-    private readonly DB_ERROR = 'DB Error';
-    private readonly RESOURCE_NOT_FOUND = 'Not Found';
-    private readonly VERIFICATION_FAIL = 'Verification fail';
-    private readonly NOT_AUTHORIZED = 'Not Authorized';
-    private readonly WRONG_ACCESS = 'Wrong Access';
-    private readonly EMAIL_TAKEN = 'Email already taken';
-    private readonly PASSWORD_WRONG = 'Password wrong';
-    private readonly CATEGORY_EXIST = 'Category already exists';
+    readonly DB_ERROR = 'DB Error';
+    readonly RESOURCE_NOT_FOUND = 'Not Found';
+    readonly VERIFICATION_FAIL = 'Verification Fail';
+    readonly NOT_AUTHORIZED = 'Not Authorized';
+    readonly WRONG_ACCESS = 'Wrong Access';
+    readonly EMAIL_TAKEN = 'Email Already Taken';
+    readonly PASSWORD_WRONG = 'Password Wrong';
+    readonly CATEGORY_EXIST = 'Category Already Exists';
 
     dbErrorOutput = this.createErrorOutput(this.DB_ERROR);
 

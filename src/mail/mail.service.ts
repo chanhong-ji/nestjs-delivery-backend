@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as FormData from 'form-data';
 import fetch from 'node-fetch';
 import { CONFIG_OPTIONS } from 'src/common/common.constants';
@@ -9,6 +10,7 @@ export class MailService {
     constructor(
         @Inject(CONFIG_OPTIONS)
         private readonly options: MailModuleOptions,
+        private readonly configService: ConfigService,
     ) {}
 
     async sendEmail(
@@ -27,7 +29,9 @@ export class MailService {
             if (element.key === 'code') {
                 form.append(
                     'v:arrivaladdress',
-                    `http://localhost:3000/confirm-code?code=${element.value}`,
+                    `${this.configService.get(
+                        'service.url',
+                    )}/confirm-code?code=${element.value}`,
                     ``,
                 );
             }

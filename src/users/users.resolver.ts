@@ -94,7 +94,7 @@ export class UsersResolver {
     @Mutation((returns) => EditProfileOutput)
     async editProfile(
         @Args() args: EditProfileInput,
-        @AuthUser() user,
+        @AuthUser() user: User,
     ): Promise<EditProfileOutput> {
         try {
             if (args.email) {
@@ -104,7 +104,9 @@ export class UsersResolver {
                 }
 
                 // Delete old verification and Create new one
-                await this.service.deleteVerification(user.id);
+                if (!user.verified) {
+                    await this.service.deleteVerification(user.id);
+                }
                 const veri = await this.service.createVerification(user.id);
 
                 this.mailService.sendVerificationEmail(args.email, veri.code);

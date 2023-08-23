@@ -1,5 +1,5 @@
 export default () => ({
-    port: parseInt(process.env.PORT, 10) || 3000,
+    port: parseInt(process.env.PORT, 10) || 4000,
     database: {
         host: process.env.DATABASE_HOST,
         port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
@@ -18,5 +18,12 @@ export default () => ({
     test: {
         testEmail1: process.env.TEST_EMAIL_1,
         testEmail2: process.env.TEST_EMAIL_2,
+    },
+    service: {
+        url: process.env.SERVICE_URL,
+    },
+    aws: {
+        accessKey: process.env.AWS_ACCESS_KEY,
+        secretKey: process.env.AWS_SECRET_KEY,
     },
 });

@@ -143,7 +143,7 @@ export class OrdersResolver {
                 ownerId: restaurant.ownerId,
             });
 
-            return { ok: true };
+            return { ok: true, orderId: order.id };
         } catch (error) {
             console.log(error);
             return this.errors.dbErrorOutput;
@@ -216,11 +216,6 @@ export class OrdersResolver {
                     return this.errors.wrongAccessError;
 
                 await this.service.editOrder(order, OrderStatus.Cooking);
-
-                this.pubSub.publish(ORDER_UPDATES, {
-                    order: { ...order, status },
-                    ownerId: order.restaurant.ownerId,
-                });
             }
             // Cooking => Cooked
             else if (status === OrderStatusForOwner.Cooked) {
@@ -232,10 +227,16 @@ export class OrdersResolver {
                 const orderWithDetail = await this.service.findByIdWithDetail(
                     order.id,
                 );
-                await this.pubSub.publish(NEW_COOKED_ORDERS, {
+
+                this.pubSub.publish(NEW_COOKED_ORDERS, {
                     order: orderWithDetail,
                 });
             }
+
+            this.pubSub.publish(ORDER_UPDATES, {
+                order: { ...order, status },
+                ownerId: order.restaurant.ownerId,
+            });
 
             return { ok: true };
         } catch (error) {
@@ -267,31 +268,40 @@ export class OrdersResolver {
                     return this.errors.wrongAccessError;
 
                 await this.service.assignDriver(order, user.id);
+
+                this.pubSub.publish(ORDER_UPDATES, {
+                    order: {
+                        ...order,
+                        driver: { id: user.id, email: user.email },
+                    },
+                    ownerId: order.restaurant.ownerId,
+                });
+            } else {
+                // Cooked => PickedUp
+                if (status === OrderStatusForDelivery.PickedUp) {
+                    if (order.driverId !== user.id)
+                        return this.errors.notAuthorizedError;
+
+                    if (order.status !== OrderStatus.Cooked)
+                        return this.errors.wrongAccessError;
+
+                    await this.service.editOrder(order, OrderStatus.PickedUp);
+                }
+                // PickedUp => Delivered
+                else if (status === OrderStatusForDelivery.Delivered) {
+                    if (order.driverId !== user.id)
+                        return this.errors.notAuthorizedError;
+
+                    if (order.status !== OrderStatus.PickedUp)
+                        return this.errors.wrongAccessError;
+                    await this.service.editOrder(order, OrderStatus.Delivered);
+                }
+
+                this.pubSub.publish(ORDER_UPDATES, {
+                    order: { ...order, status },
+                    ownerId: order.restaurant.ownerId,
+                });
             }
-            // Cooked => PickedUp
-            else if (status === OrderStatusForDelivery.PickedUp) {
-                if (order.driverId !== user.id)
-                    return this.errors.notAuthorizedError;
-
-                if (order.status !== OrderStatus.Cooked)
-                    return this.errors.wrongAccessError;
-
-                await this.service.editOrder(order, OrderStatus.PickedUp);
-            }
-            // PickedUp => Delivered
-            else if (status === OrderStatusForDelivery.Delivered) {
-                if (order.driverId !== user.id)
-                    return this.errors.notAuthorizedError;
-
-                if (order.status !== OrderStatus.PickedUp)
-                    return this.errors.wrongAccessError;
-                await this.service.editOrder(order, OrderStatus.Delivered);
-            }
-
-            this.pubSub.publish(ORDER_UPDATES, {
-                order: { ...order, status },
-                ownerId: order.restaurant.ownerId,
-            });
 
             return { ok: true };
         } catch (error) {

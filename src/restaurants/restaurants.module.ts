@@ -18,7 +18,7 @@ import { ErrorOutputs } from 'src/common/errors';
         RestaurantsResolver,
         CategoriesResolver,
         DishesResolver,
-        { provide: 'PER_PAGE', useValue: 5 },
+        { provide: 'PER_PAGE', useValue: 3 },
         ErrorOutputs,
     ],
     exports: [RestaurantsService],

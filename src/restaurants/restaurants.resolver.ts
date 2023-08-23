@@ -44,6 +44,8 @@ import { EditDishInput, EditDishOutput } from './dtos/edit-dish.dto';
 import { DeleteDishInput, DeleteDishOutput } from './dtos/delete-dish.dto';
 import { CoreOutput } from 'src/common/dtos/output.dto';
 import { ErrorOutputs } from 'src/common/errors';
+import { MyRestaurantsOutput } from './dtos/my-restaurants';
+import { MyRestaurantInput, MyRestaurantOutput } from './dtos/my-restaurant';
 
 @Resolver()
 export class RestaurantsResolver {
@@ -53,10 +55,7 @@ export class RestaurantsResolver {
         @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
     ) {}
 
-    private async restaurantValidation(
-        restaurant: Restaurant,
-        user: User | null,
-    ) {
+    private restaurantValidation(restaurant: Restaurant, user: User | null) {
         if (!restaurant) return this.errors.notFoundErrorOutput;
 
         if (user && restaurant.ownerId !== user.id)
@@ -68,6 +67,7 @@ export class RestaurantsResolver {
     }
 
     @Query((returns) => RestaurantOutput)
+    @Public()
     async restaurant(
         @Args() { id }: RestaurantInput,
     ): Promise<RestaurantOutput> {
@@ -88,6 +88,7 @@ export class RestaurantsResolver {
     }
 
     @Query((returns) => RestaurantsOutput)
+    @Public()
     async restaurants(
         @Args() args: RestaurantsInput,
     ): Promise<RestaurantsOutput> {
@@ -117,6 +118,38 @@ export class RestaurantsResolver {
         }
     }
 
+    @Query((returns) => MyRestaurantsOutput)
+    @Role(['Owner'])
+    async myRestaurants(@AuthUser() user: User): Promise<MyRestaurantsOutput> {
+        try {
+            const restaurants = await this.service.findAllByOwner(user.id);
+            return { ok: true, result: restaurants };
+        } catch (error) {
+            console.log(error);
+            return this.errors.dbErrorOutput;
+        }
+    }
+
+    @Query((returns) => MyRestaurantOutput)
+    @Role(['Owner'])
+    async myRestaurant(
+        @Args() args: MyRestaurantInput,
+        @AuthUser() user: User,
+    ): Promise<MyRestaurantOutput> {
+        try {
+            const restaurant = await this.service.findByIdWithDetail(args.id);
+
+            const validationError = this.restaurantValidation(restaurant, user);
+
+            if (validationError) return validationError;
+
+            return { ok: true, result: restaurant };
+        } catch (error) {
+            console.log(error);
+            return this.errors.dbErrorOutput;
+        }
+    }
+
     @Mutation((returns) => CreateRestaurantOutput)
     @Role(['Owner'])
     async createRestaurant(
@@ -131,10 +164,11 @@ export class RestaurantsResolver {
             const validationError = await this.categoryValidation(category);
             if (validationError) return validationError;
 
-            await this.service.create(user.id, args);
+            const restaurant = await this.service.create(user.id, args);
 
             return {
                 ok: true,
+                restaurantId: restaurant.id,
             };
         } catch (error) {
             console.log(error);
@@ -189,6 +223,7 @@ export class RestaurantsResolver {
         }
     }
 
+    @Public()
     @Query((returns) => SearchRestaurantOutput)
     async searchRestaurant(
         @Args() { query, page }: SearchRestaurantInput,

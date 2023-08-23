@@ -7,7 +7,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLFormattedError } from 'graphql';
 import { Context } from 'graphql-ws';
 import * as Joi from 'joi';
-import { join } from 'path';
 import configuration from './config/configuration';
 import { CommonModule } from './common/common.module';
 import { UsersModule } from './users/users.module';
@@ -15,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { OrdersModule } from './orders/orders.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
     imports: [
@@ -22,8 +22,7 @@ import { OrdersModule } from './orders/orders.module';
             driver: ApolloDriver,
             playground: false,
             plugins: [ApolloServerPluginLandingPageLocalDefault()],
-            // autoSchemaFile: true,
-            autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+            autoSchemaFile: true,
             context: ({ req, extra }) => {
                 return {
                     authorization: req
@@ -42,8 +41,6 @@ import { OrdersModule } from './orders/orders.module';
                 },
             },
             formatError(error: GraphQLFormattedError) {
-                // console.log('---------------------------------graqphl error');
-                // console.log(error);
                 return error;
             },
         }),
@@ -65,6 +62,8 @@ import { OrdersModule } from './orders/orders.module';
                 JWT_EXPIRESIN: Joi.number(),
                 MAILGUN_API_KEY: Joi.string().required(),
                 MAILGUN_DOMAIN_NAME: Joi.string().required(),
+                AWS_ACCESS_KEY: Joi.string().required(),
+                AWS_SECRET_KEY: Joi.string().required(),
                 ...(process.env.NODE_ENV === 'test' && {
                     TEST_EMAIL_1: Joi.string().required(),
                 }),
@@ -94,6 +93,7 @@ import { OrdersModule } from './orders/orders.module';
         MailModule,
         RestaurantsModule,
         OrdersModule,
+        UploadsModule,
     ],
 })
 export class AppModule {}

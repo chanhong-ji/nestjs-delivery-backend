@@ -28,6 +28,19 @@ export class RestaurantsService {
         });
     }
 
+    async findByIdWithDetail(id: number): Promise<Restaurant | null> {
+        return this.restaurantRepo.findOne({
+            where: { id },
+            relations: ['menu', 'category'],
+            select: {
+                category: {
+                    id: true,
+                    name: true,
+                },
+            },
+        });
+    }
+
     async findByIdWithMenu(id: number): Promise<Restaurant | null> {
         return this.restaurantRepo.findOne({
             where: { id },
@@ -46,13 +59,30 @@ export class RestaurantsService {
         });
     }
 
+    async findAllByOwner(ownerId: number): Promise<Restaurant[]> {
+        return this.restaurantRepo.find({
+            where: { owner: { id: ownerId } },
+            relations: ['category'],
+            select: {
+                category: {
+                    id: true,
+                    name: true,
+                },
+            },
+        });
+    }
+
     async search(name: string, page: number): Promise<[Restaurant[], number]> {
         return this.restaurantRepo.findAndCount({
             where: { name: ILike(`%${name}%`) },
             take: this.PER_PAGE,
             skip: this.PER_PAGE * (page - 1),
-            loadRelationIds: {
-                relations: ['category'],
+            relations: ['category'],
+            select: {
+                category: {
+                    id: true,
+                    name: true,
+                },
             },
         });
     }
@@ -60,11 +90,15 @@ export class RestaurantsService {
     async create(
         ownerId: number,
         { categoryId, ...data }: CreateRestaurantInput,
-    ): Promise<void> {
-        await this.restaurantRepo.save(
+    ): Promise<Restaurant> {
+        return this.restaurantRepo.save(
             this.restaurantRepo.create({
-                ownerId,
-                categoryId,
+                owner: {
+                    id: ownerId,
+                },
+                category: {
+                    id: categoryId,
+                },
                 ...data,
             }),
         );
