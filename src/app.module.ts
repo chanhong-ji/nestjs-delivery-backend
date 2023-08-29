@@ -49,9 +49,11 @@ import { UploadsModule } from './uploads/uploads.module';
             load: [configuration],
             envFilePath:
                 process.env.NODE_ENV === 'dev' ? '.env.dev' : '.env.test',
-            ignoreEnvFile: process.env.NODE_ENV === 'prod',
+            ignoreEnvFile: process.env.NODE_ENV === 'production',
             validationSchema: Joi.object({
-                NODE_ENV: Joi.string().valid('dev', 'prod', 'test').required(),
+                NODE_ENV: Joi.string()
+                    .valid('dev', 'production', 'test')
+                    .required(),
                 HOST: Joi.string().required(),
                 PORT: Joi.number(),
                 // DATABASE_USERNAME: Joi.string().required(),
@@ -59,7 +61,7 @@ import { UploadsModule } from './uploads/uploads.module';
                 // DATABASE_NAME: Joi.string().required(),
                 JWT_SECRET: Joi.string().required(),
                 JWT_EXPIRESIN: Joi.number(),
-                SERVICE_URL: Joi.string().required(),
+                SERVICE_URL: Joi.string(),
                 MAILGUN_API_KEY: Joi.string(),
                 MAILGUN_DOMAIN_NAME: Joi.string(),
                 AWS_ACCESS_KEY: Joi.string().required(),
