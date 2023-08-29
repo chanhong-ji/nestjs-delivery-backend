@@ -1,4 +1,4 @@
-import { ArgsType, Field, ObjectType, PickType } from '@nestjs/graphql';
+import { ArgsType, Field, ObjectType } from '@nestjs/graphql';
 import { Order, OrderStatus } from '../entities/order.entity';
 import {
     PaginationInput,

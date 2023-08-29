@@ -26,8 +26,18 @@ export class UsersService {
         return this.repo.save(this.repo.create(data));
     }
 
-    async update(user, data: EditProfileInput): Promise<User> {
-        return this.repo.save({ ...user, ...data });
+    async update(user: User, data: EditProfileInput): Promise<User> {
+        let password;
+
+        if (data.password) {
+            password = await user.hashPassword(data.password);
+        }
+
+        return this.repo.save({
+            ...user,
+            ...data,
+            ...(password && { password }),
+        });
     }
 
     // Verification

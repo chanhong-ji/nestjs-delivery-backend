@@ -47,6 +47,11 @@ export class User extends CoreEntity {
     @IsEnum(UserRole)
     role: UserRole;
 
+    @Field((type) => String)
+    @Column()
+    @IsString()
+    address: string;
+
     @Field((type) => Boolean, { defaultValue: false })
     @Column({ default: false })
     verified: boolean;
@@ -68,12 +73,16 @@ export class User extends CoreEntity {
         this.originalPassword = this.password;
     }
 
-    @BeforeInsert()
-    @BeforeUpdate()
-    async hashPassword(): Promise<void> {
-        if (this.password !== this.originalPassword) {
-            this.password = await bcrypt.hash(this.password, 10);
-        }
+    // @BeforeInsert()
+    // @BeforeUpdate()
+    // async hashPassword(): Promise<void> {
+    //     if (this.password !== this.originalPassword) {
+    //         this.password = await bcrypt.hash(this.password, 10);
+    //     }
+    // }
+
+    async hashPassword(password: string): Promise<string | null> {
+        return bcrypt.hash(password, 10);
     }
 
     async checkPassword(password: string): Promise<boolean> {

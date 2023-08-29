@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
 import { User } from 'src/users/entities/users.entity';
 import { Dish } from 'src/restaurants/entities/dish.entity';
@@ -73,21 +73,50 @@ export class OrdersService {
         let whereOption;
 
         if (user.role === UserRole.Client) {
-            whereOption = { customer: { id: user.id } };
+            whereOption = {
+                customer: { id: user.id },
+                ...(status && { status }),
+            };
         } else if (user.role === UserRole.Delivery) {
-            whereOption = { driver: { id: user.id } };
+            whereOption = {
+                driver: { id: user.id },
+                ...(status && { status }),
+            };
         } else if (user.role === UserRole.Owner) {
-            whereOption = { restaurant: { owner: { id: user.id } } };
+            whereOption = {
+                restaurant: { owner: { id: user.id } },
+                ...(status ? { status } : { status: Not('Delivered') }),
+            };
         }
 
         return this.repo.findAndCount({
             where: {
-                ...(status && { status }),
                 ...whereOption,
             },
-            loadRelationIds: true,
+            relations: {
+                restaurant: true,
+                items: {
+                    dish: true,
+                },
+            },
+            select: {
+                restaurant: {
+                    id: true,
+                    name: true,
+                },
+                items: {
+                    id: true,
+                    choices: true,
+                    dish: {
+                        id: true,
+                        name: true,
+                        price: true,
+                    },
+                },
+            },
             skip: this.PER_PAGE * (page - 1),
             take: this.PER_PAGE,
+            order: { createdAt: 'DESC' },
         });
     }
 
