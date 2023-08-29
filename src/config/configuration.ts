@@ -1,11 +1,11 @@
 export default () => ({
-    port: parseInt(process.env.PORT, 10) || 4000,
     database: {
-        host: process.env.DATABASE_HOST,
-        port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
+        host: process.env.HOST,
+        port: parseInt(process.env.PORT, 10) || 5432,
         username: process.env.DATABASE_USERNAME,
         password: process.env.DATABASE_PASSWORD,
         name: process.env.DATABASE_NAME,
+        url: process.env.DATABASE_URL,
     },
     jwt: {
         secret: process.env.JWT_SECRET,
@@ -21,6 +21,7 @@ export default () => ({
     },
     service: {
         url: process.env.SERVICE_URL,
+        port: parseInt(process.env.SERVICE_PORT) || 4000,
     },
     aws: {
         accessKey: process.env.AWS_ACCESS_KEY,

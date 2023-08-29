@@ -20,7 +20,7 @@ import { UploadsModule } from './uploads/uploads.module';
     imports: [
         GraphQLModule.forRoot<ApolloDriverConfig>({
             driver: ApolloDriver,
-            playground: false,
+            playground: process.env.NODE_ENV === 'dev' ? false : true,
             plugins: [ApolloServerPluginLandingPageLocalDefault()],
             autoSchemaFile: true,
             context: ({ req, extra }) => {
@@ -52,14 +52,14 @@ import { UploadsModule } from './uploads/uploads.module';
             ignoreEnvFile: process.env.NODE_ENV === 'prod',
             validationSchema: Joi.object({
                 NODE_ENV: Joi.string().valid('dev', 'prod', 'test').required(),
+                HOST: Joi.string().required(),
                 PORT: Joi.number(),
-                DATABASE_HOST: Joi.string().required(),
-                DATABASE_PORT: Joi.number(),
-                DATABASE_USERNAME: Joi.string().required(),
-                DATABASE_PASSWORD: Joi.string().required(),
-                DATABASE_NAME: Joi.string().required(),
+                // DATABASE_USERNAME: Joi.string().required(),
+                // DATABASE_PASSWORD: Joi.string().required(),
+                // DATABASE_NAME: Joi.string().required(),
                 JWT_SECRET: Joi.string().required(),
                 JWT_EXPIRESIN: Joi.number(),
+                SERVICE_URL: Joi.string().required(),
                 MAILGUN_API_KEY: Joi.string().required(),
                 MAILGUN_DOMAIN_NAME: Joi.string().required(),
                 AWS_ACCESS_KEY: Joi.string().required(),
@@ -74,17 +74,33 @@ import { UploadsModule } from './uploads/uploads.module';
         }),
         TypeOrmModule.forRootAsync({
             imports: [ConfigModule],
-            useFactory: (configService: ConfigService) => ({
-                type: 'postgres',
-                host: configService.get('database.host'),
-                port: configService.get('database.port'),
-                username: configService.get('database.username'),
-                password: configService.get('database.password'),
-                database: configService.get('database.name'),
-                autoLoadEntities: true,
-                synchronize: process.env.NODE_ENV !== 'prod',
-                dropSchema: process.env.NODE_ENV === 'test',
-            }),
+            useFactory: (configService: ConfigService) => {
+                if (
+                    process.env.NODE_ENV === 'dev' ||
+                    process.env.NODE_ENV === 'test'
+                ) {
+                    return {
+                        type: 'postgres',
+                        host: configService.get('database.host'),
+                        port: configService.get('database.port'),
+                        username: configService.get('database.username'),
+                        password: configService.get('database.password'),
+                        database: configService.get('database.name'),
+                        autoLoadEntities: true,
+                        synchronize: true,
+                        dropSchema: process.env.NODE_ENV === 'test',
+                    };
+                } else {
+                    return {
+                        type: 'postgres',
+                        host: configService.get('database.host'),
+                        port: configService.get('database.port'),
+                        url: configService.get('database.url'),
+                        autoLoadEntities: true,
+                        synchronize: false,
+                    };
+                }
+            },
             inject: [ConfigService],
         }),
         UsersModule,
