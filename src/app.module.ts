@@ -60,8 +60,8 @@ import { UploadsModule } from './uploads/uploads.module';
                 JWT_SECRET: Joi.string().required(),
                 JWT_EXPIRESIN: Joi.number(),
                 SERVICE_URL: Joi.string().required(),
-                MAILGUN_API_KEY: Joi.string().required(),
-                MAILGUN_DOMAIN_NAME: Joi.string().required(),
+                MAILGUN_API_KEY: Joi.string(),
+                MAILGUN_DOMAIN_NAME: Joi.string(),
                 AWS_ACCESS_KEY: Joi.string().required(),
                 AWS_SECRET_KEY: Joi.string().required(),
                 ...(process.env.NODE_ENV === 'test' && {
