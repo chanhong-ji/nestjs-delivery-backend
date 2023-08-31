@@ -15,6 +15,10 @@ import { Public } from 'src/auth/decorators/public.decorator';
 import { AuthUser } from 'src/auth/decorators/auth-user.decorator';
 import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
 import { VerifyCodeInput, VerifyCodeOutput } from './dtos/verify-code.dto';
+import {
+    DeleteAccountInput,
+    DeleteAccountOutput,
+} from './dtos/delete-account.dto';
 
 @Resolver((of) => User)
 export class UsersResolver {
@@ -61,9 +65,12 @@ export class UsersResolver {
 
             // Check if password is right
             const passwordConfirm = await user.checkPassword(password);
+            console.log(passwordConfirm, ': confirmed');
+
             if (!passwordConfirm) return this.errors.passwordWrongError;
 
             const token = await this.authService.sign(user.id);
+
             return { ok: true, token };
         } catch (error) {
             console.log(error);
@@ -118,6 +125,27 @@ export class UsersResolver {
             });
 
             return { ok: true, user: updatedUser };
+        } catch (error) {
+            console.log(error);
+            return this.errors.dbErrorOutput;
+        }
+    }
+
+    @Public()
+    @Mutation((returns) => DeleteAccountOutput)
+    async deleteAccount(
+        @Args() { password, email }: DeleteAccountInput, // @AuthUser() user: User,
+    ) {
+        try {
+            const user = await this.service.findByEmail(email);
+
+            this.service.delete(user);
+            // const passwordConfirm = await user.checkPassword(password);
+            // if (!passwordConfirm) return this.errors.passwordWrongError;
+
+            // this.service.delete(user);
+
+            return { ok: true };
         } catch (error) {
             console.log(error);
             return this.errors.dbErrorOutput;

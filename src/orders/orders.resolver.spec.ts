@@ -626,7 +626,7 @@ const createFakeUser = (): User => ({
     orders: [],
     rides: [],
     checkPassword: jest.fn(),
-    hashPassword: jest.fn(),
+    getHashedPassword: jest.fn(),
     updatedAt: new Date(),
     createdAt: new Date(),
     saveOriginPassword: jest.fn(),

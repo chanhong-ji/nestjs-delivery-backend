@@ -73,19 +73,20 @@ export class User extends CoreEntity {
         this.originalPassword = this.password;
     }
 
-    // @BeforeInsert()
-    // @BeforeUpdate()
-    // async hashPassword(): Promise<void> {
-    //     if (this.password !== this.originalPassword) {
-    //         this.password = await bcrypt.hash(this.password, 10);
-    //     }
-    // }
+    @BeforeInsert()
+    async hashPassword(): Promise<void> {
+        if (this.password !== this.originalPassword) {
+            this.password = await bcrypt.hash(this.password, 10);
+        }
+    }
 
-    async hashPassword(password: string): Promise<string | null> {
+    async getHashedPassword(password: string): Promise<string | null> {
         return bcrypt.hash(password, 10);
     }
 
     async checkPassword(password: string): Promise<boolean> {
+        console.log(password, this.password, 'pass, thispass');
+
         return bcrypt.compare(password, this.password);
     }
 }

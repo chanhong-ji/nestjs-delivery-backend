@@ -83,12 +83,11 @@ import { UploadsModule } from './uploads/uploads.module';
             imports: [ConfigModule],
             useFactory: (configService: ConfigService) => {
                 if (process.env.NODE_ENV === 'production') {
-                    console.log('launch production mode');
                     return {
                         type: 'postgres',
                         url: configService.get('database.url'),
                         autoLoadEntities: true,
-                        synchronize: false,
+                        synchronize: true,
                     };
                 } else {
                     return {

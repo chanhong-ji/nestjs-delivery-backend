@@ -30,7 +30,7 @@ export class UsersService {
         let password;
 
         if (data.password) {
-            password = await user.hashPassword(data.password);
+            password = await user.getHashedPassword(data.password);
         }
 
         return this.repo.save({
@@ -38,6 +38,10 @@ export class UsersService {
             ...data,
             ...(password && { password }),
         });
+    }
+
+    async delete(user: User): Promise<void> {
+        await this.repo.delete(user.id);
     }
 
     // Verification
