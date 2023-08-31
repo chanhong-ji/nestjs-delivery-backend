@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
+import { ApolloServerPluginLandingPageGraphQLPlayground } from '@apollo/server-plugin-landing-page-graphql-playground';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLFormattedError } from 'graphql';
@@ -20,8 +21,11 @@ import { UploadsModule } from './uploads/uploads.module';
     imports: [
         GraphQLModule.forRoot<ApolloDriverConfig>({
             driver: ApolloDriver,
-            playground: process.env.NODE_ENV === 'dev' ? false : true,
-            plugins: [ApolloServerPluginLandingPageLocalDefault()],
+            playground: false,
+            plugins:
+                process.env.NODE_ENV === 'production'
+                    ? [ApolloServerPluginLandingPageGraphQLPlayground()]
+                    : [ApolloServerPluginLandingPageLocalDefault()],
             autoSchemaFile: true,
             context: ({ req, extra }) => {
                 return {
@@ -56,9 +60,9 @@ import { UploadsModule } from './uploads/uploads.module';
                     .required(),
                 HOST: Joi.string().required(),
                 PORT: Joi.number(),
-                // DATABASE_USERNAME: Joi.string().required(),
-                // DATABASE_PASSWORD: Joi.string().required(),
-                // DATABASE_NAME: Joi.string().required(),
+                DATABASE_USER: Joi.string().required(),
+                DATABASE_PASSWORD: Joi.string().required(),
+                POSTGRES_DB: Joi.string().required(),
                 JWT_SECRET: Joi.string().required(),
                 JWT_EXPIRESIN: Joi.number(),
                 SERVICE_URL: Joi.string(),
@@ -76,33 +80,18 @@ import { UploadsModule } from './uploads/uploads.module';
         }),
         TypeOrmModule.forRootAsync({
             imports: [ConfigModule],
-            useFactory: (configService: ConfigService) => {
-                if (
-                    process.env.NODE_ENV === 'dev' ||
-                    process.env.NODE_ENV === 'test'
-                ) {
-                    return {
-                        type: 'postgres',
-                        host: configService.get('database.host'),
-                        port: configService.get('database.port'),
-                        username: configService.get('database.username'),
-                        password: configService.get('database.password'),
-                        database: configService.get('database.name'),
-                        autoLoadEntities: true,
-                        synchronize: true,
-                        dropSchema: process.env.NODE_ENV === 'test',
-                    };
-                } else {
-                    return {
-                        type: 'postgres',
-                        host: configService.get('database.host'),
-                        port: configService.get('database.port'),
-                        url: configService.get('database.url'),
-                        autoLoadEntities: true,
-                        synchronize: false,
-                    };
-                }
-            },
+            useFactory: (configService: ConfigService) => ({
+                type: 'postgres',
+                host: configService.get('database.host'),
+                port: configService.get('database.port'),
+                username: configService.get('database.username'),
+                password: configService.get('database.password'),
+                database: configService.get('database.name'),
+                url: configService.get('database.url'),
+                autoLoadEntities: true,
+                synchronize: process.env.NODE_ENV !== 'production',
+                dropSchema: process.env.NODE_ENV === 'test',
+            }),
             inject: [ConfigService],
         }),
         UsersModule,

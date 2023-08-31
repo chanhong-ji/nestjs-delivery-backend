@@ -2,9 +2,9 @@ export default () => ({
     database: {
         host: process.env.HOST,
         port: parseInt(process.env.PORT, 10) || 5432,
-        username: process.env.DATABASE_USERNAME,
+        username: process.env.DATABASE_USER,
         password: process.env.DATABASE_PASSWORD,
-        name: process.env.DATABASE_NAME,
+        name: process.env.POSTGRES_DB,
         url: process.env.DATABASE_URL,
     },
     jwt: {
