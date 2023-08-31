@@ -60,9 +60,10 @@ import { UploadsModule } from './uploads/uploads.module';
                     .required(),
                 HOST: Joi.string().required(),
                 PORT: Joi.number(),
-                DATABASE_USER: Joi.string().required(),
-                DATABASE_PASSWORD: Joi.string().required(),
-                POSTGRES_DB: Joi.string().required(),
+                DATABASE_URL: Joi.string(),
+                DATABASE_USER: Joi.string(),
+                DATABASE_PASSWORD: Joi.string(),
+                POSTGRES_DB: Joi.string(), //name of database
                 JWT_SECRET: Joi.string().required(),
                 JWT_EXPIRESIN: Joi.number(),
                 SERVICE_URL: Joi.string(),
@@ -80,18 +81,29 @@ import { UploadsModule } from './uploads/uploads.module';
         }),
         TypeOrmModule.forRootAsync({
             imports: [ConfigModule],
-            useFactory: (configService: ConfigService) => ({
-                type: 'postgres',
-                host: configService.get('database.host'),
-                port: configService.get('database.port'),
-                username: configService.get('database.username'),
-                password: configService.get('database.password'),
-                database: configService.get('database.name'),
-                url: configService.get('database.url'),
-                autoLoadEntities: true,
-                synchronize: process.env.NODE_ENV !== 'production',
-                dropSchema: process.env.NODE_ENV === 'test',
-            }),
+            useFactory: (configService: ConfigService) => {
+                if (process.env.NODE_ENV === 'production') {
+                    console.log('launch production mode');
+                    return {
+                        type: 'postgres',
+                        url: configService.get('database.url'),
+                        autoLoadEntities: true,
+                        synchronize: false,
+                    };
+                } else {
+                    return {
+                        type: 'postgres',
+                        host: configService.get('database.host'),
+                        port: configService.get('database.port'),
+                        username: configService.get('database.username'),
+                        password: configService.get('database.password'),
+                        database: configService.get('database.name'),
+                        autoLoadEntities: true,
+                        synchronize: true,
+                        dropSchema: process.env.NODE_ENV === 'test',
+                    };
+                }
+            },
             inject: [ConfigService],
         }),
         UsersModule,

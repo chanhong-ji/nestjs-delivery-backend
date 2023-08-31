@@ -1,7 +1,9 @@
 export default () => ({
+    host: process.env.HOST,
+    port: process.env.PORT,
     database: {
-        host: process.env.HOST,
-        port: parseInt(process.env.PORT, 10) || 5432,
+        host: process.env.DATABASE_HOST,
+        port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
         username: process.env.DATABASE_USER,
         password: process.env.DATABASE_PASSWORD,
         name: process.env.POSTGRES_DB,

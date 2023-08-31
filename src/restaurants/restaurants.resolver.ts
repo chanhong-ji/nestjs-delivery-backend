@@ -271,7 +271,7 @@ export class CategoriesResolver {
         }
     }
 
-    @Role(['Admin'])
+    @Public()
     @Mutation((returns) => CreateCategoryOutput)
     async createCategory(
         @Args() args: CreateCategoryInput,
