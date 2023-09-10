@@ -5,7 +5,7 @@ import { CoreOutput } from 'src/common/dtos/output.dto';
 @ArgsType()
 export class CreateAccountInput extends PickType(
     User,
-    ['email', 'password', 'role', 'address'],
+    ['email', 'password', 'role', 'address', 'dongCode'],
     ArgsType,
 ) {}
 

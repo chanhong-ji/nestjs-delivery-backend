@@ -46,6 +46,7 @@ import { CoreOutput } from 'src/common/dtos/output.dto';
 import { ErrorOutputs } from 'src/common/errors';
 import { MyRestaurantsOutput } from './dtos/my-restaurants';
 import { MyRestaurantInput, MyRestaurantOutput } from './dtos/my-restaurant';
+import { DishInput, DishOutput } from './dtos/dish.dto';
 
 @Resolver()
 export class RestaurantsResolver {
@@ -296,6 +297,25 @@ export class DishesResolver {
         private readonly service: RestaurantsService,
         @Inject(ErrorOutputs) private readonly errors: ErrorOutputs,
     ) {}
+
+    @Query((returns) => DishOutput)
+    @Role(['Owner'])
+    async dish(
+        @Args() args: DishInput,
+        @AuthUser() user: User,
+    ): Promise<DishOutput> {
+        try {
+            const dish = await this.service.findDishById(args.id);
+
+            const validationError = await this.dishValidation(dish, user);
+            if (validationError) return validationError;
+
+            return { ok: true, result: dish };
+        } catch (error) {
+            console.log(error);
+            return this.errors.dbErrorOutput;
+        }
+    }
 
     @Mutation((returns) => CreateDishOutput)
     @Role(['Owner'])

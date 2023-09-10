@@ -12,7 +12,7 @@ import {
     AfterLoad,
     OneToMany,
 } from 'typeorm';
-import { IsEmail, IsEnum, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsString, IsOptional } from 'class-validator';
 import * as bcrypt from 'bcrypt';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Restaurant } from './../../restaurants/entities/restaurant.entity';
@@ -52,6 +52,12 @@ export class User extends CoreEntity {
     @IsString()
     address: string;
 
+    @Field((type) => String, { nullable: true })
+    @Column({ nullable: true })
+    @IsString()
+    @IsOptional()
+    dongCode?: string;
+
     @Field((type) => Boolean, { defaultValue: false })
     @Column({ default: false })
     verified: boolean;
@@ -85,8 +91,6 @@ export class User extends CoreEntity {
     }
 
     async checkPassword(password: string): Promise<boolean> {
-        console.log(password, this.password, 'pass, thispass');
-
         return bcrypt.compare(password, this.password);
     }
 }

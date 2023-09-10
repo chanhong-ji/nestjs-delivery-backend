@@ -65,7 +65,6 @@ export class UsersResolver {
 
             // Check if password is right
             const passwordConfirm = await user.checkPassword(password);
-            console.log(passwordConfirm, ': confirmed');
 
             if (!passwordConfirm) return this.errors.passwordWrongError;
 

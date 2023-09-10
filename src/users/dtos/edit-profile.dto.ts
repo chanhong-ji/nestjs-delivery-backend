@@ -10,7 +10,7 @@ import { User } from '../entities/users.entity';
 
 @ArgsType()
 export class EditProfileInput extends PartialType(
-    PickType(User, ['email', 'password', 'address']),
+    PickType(User, ['email', 'password', 'address', 'dongCode']),
     ArgsType,
 ) {}
 

@@ -5,7 +5,13 @@ import {
     ObjectType,
     registerEnumType,
 } from '@nestjs/graphql';
-import { IsArray, IsEnum, IsNumber, IsString } from 'class-validator';
+import {
+    IsArray,
+    IsEnum,
+    IsNumber,
+    IsOptional,
+    IsString,
+} from 'class-validator';
 import {
     Column,
     Entity,
@@ -87,4 +93,10 @@ export class Order extends CoreEntity {
     @Column()
     @IsString()
     address: String;
+
+    @Field((type) => String, { nullable: true })
+    @Column({ nullable: true })
+    @IsString()
+    @IsOptional()
+    dongCode?: string;
 }

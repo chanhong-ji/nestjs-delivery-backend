@@ -6,7 +6,7 @@ import { IsNumber } from 'class-validator';
 @ArgsType()
 export class CreateRestaurantInput extends PickType(
     Restaurant,
-    ['name', 'address', 'coverImage'],
+    ['name', 'address', 'coverImage', 'dongCode'],
     ArgsType,
 ) {
     @Field((type) => Int)

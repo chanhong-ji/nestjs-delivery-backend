@@ -6,7 +6,7 @@ import {
     ObjectType,
     PickType,
 } from '@nestjs/graphql';
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { CoreOutput } from 'src/common/dtos/output.dto';
 import { OrderItem } from '../entities/order-item.entity';
 
@@ -36,6 +36,11 @@ export class CreateOrderInput {
     @Field((type) => String)
     @IsString()
     address: string;
+
+    @Field((type) => String, { nullable: true })
+    @IsString()
+    @IsOptional()
+    dongCode?: string;
 }
 
 @ObjectType()
