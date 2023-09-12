@@ -27,6 +27,7 @@ import { OrderUpdateInput } from './dtos/order-update.dto';
 const NEW_PENDING_ORDERS = 'NEW_PENDING_ORDERS';
 const NEW_COOKED_ORDERS = 'NEW_COOKED_ORDERS';
 const ORDER_UPDATES = 'ORDER_UPDATES';
+const ACCEPTED_ORDERS = 'NEW_ACCEPTED_ORDERS';
 
 @Resolver((of) => Order)
 export class OrdersResolver {
@@ -216,6 +217,14 @@ export class OrdersResolver {
                     return this.errors.wrongAccessError;
 
                 await this.service.editOrder(order, OrderStatus.Cooking);
+
+                const orderWithDetail = await this.service.findByIdWithDetail(
+                    order.id,
+                );
+
+                this.pubSub.publish(ACCEPTED_ORDERS, {
+                    order: orderWithDetail,
+                });
             }
             // Cooking => Cooked
             else if (status === OrderStatusForOwner.Cooked) {
@@ -326,6 +335,17 @@ export class OrdersResolver {
         return this.pubSub.asyncIterator(NEW_PENDING_ORDERS);
     }
 
+    // subscription for delivery (new accepted orders)
+    @Role(['Delivery'])
+    @Subscription((returns) => Order, {
+        filter: ({ order }: { order: Order }, _, { user }: { user: User }) =>
+            order.restaurant.dongCode === user.dongCode,
+        resolve: ({ order }) => order,
+    })
+    acceptedOrders() {
+        return this.pubSub.asyncIterator(ACCEPTED_ORDERS);
+    }
+
     // subscription for delivery (new cooked orders)
     @Role(['Delivery'])
     @Subscription((returns) => Order, {
@@ -338,7 +358,7 @@ export class OrdersResolver {
     }
 
     // subscription for all (updates of orders)
-    @Role(['Client', 'Owner'])
+    @Role(['Client', 'Owner', 'Delivery'])
     @Subscription((returns) => Order, {
         filter: (
             { order, ownerId }: { order: Order; ownerId: number },
